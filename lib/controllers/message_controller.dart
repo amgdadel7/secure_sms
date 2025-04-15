@@ -820,7 +820,7 @@ class MessageController with ChangeNotifier {
   // }
 
   Future<List<Message>> getMessagesForThread(String address) async {
-    print("okkkkkkkkkkkkkkkkkk");
+    print("okkk");
     // التأكد من صلاحية قراءة الرسائل.
     if (!await Permission.sms.status.isGranted) {
       throw Exception("تم رفض إذن قراءة الرسائل");
@@ -828,19 +828,19 @@ class MessageController with ChangeNotifier {
 
     // 1. الحصول على كل الرسائل من الوارد والصادر.
     List<Message> allMessages = await _getAllMessages();
-    print("okkkkkkkkkkkkkkkkkk");
+    print("okkk1");
     // 2. تحديد نوع العنوان: نصي أم رقمي.
     bool isTextAddress = RegExp(r'[a-zA-Z]').hasMatch(address);
-    print("okkkkkkkkkkkkkkkkkk");
+    print("okkk2");
     // 3. تصفية الرسائل بناءً على العنوان.
     List<Message> filteredMessages = _filterMessagesByAddress(allMessages, address, isTextAddress);
-    print("okkkkkkkkkkkkkkkkkk");
+    print("okkk3${filteredMessages}");
     // 4. في حالة كون العنوان رقمي يتم معالجة فك التشفير.
     if (!isTextAddress) {
       filteredMessages = await _processNumericDecryption(filteredMessages, address);
-      print("okkkkkkkkkkkkkkkkkk");
+      print("okkk4");
     }
-
+    print("okkk5");
     return filteredMessages;
   }
 
@@ -875,101 +875,16 @@ class MessageController with ChangeNotifier {
     String cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
     return cleaned.length >= count ? cleaned.substring(cleaned.length - count) : cleaned;
   }
-
-  /// 4. دالة معالجة فك التشفير للرسائل ذات العناوين الرقمية.
-  // Future<List<Message>> _processNumericDecryption(List<Message> messages, String address) async {
-  //   // الحصول على بيانات الجهاز: senderUUID و senderNUM.
-  //   final senderData = await getAndPrintUuid(); // مثال: {'uuid': 'sender-123', 'phone_num': '0555123456'}
-  //   final senderNum = await getAndPrintPhoneNumber(); // رقم المرسل الفعلي.
-  //   String lastNine = _getLastNDigits(address, 9);
-  //   final dbHelper = DatabaseHelper();
-  //
-  //   // البحث في قاعدة البيانات المحلية باستخدام (senderNUM, receiverNUM).
-  //   String? receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
-  //     senderNUM: senderNum,
-  //     receiverNUM: lastNine,
-  //   );
-  //   print("okkkkkkkkkkkkkkkkkk$senderNum");
-  //
-  //   // إذا لم توجد بيانات، نبحث بترتيب معكوس.
-  //   if (receiverUUID == null) {
-  //     receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
-  //       senderNUM: lastNine,
-  //       receiverNUM: senderNum,
-  //     );
-  //     print("okkkkkkkkkkkkkkkkkk$lastNine");
-  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //     if (receiverUUID == null) {
-  //       var keyinfo = await _fetchSharedSecretFromApiByNum(
-  //         lastNine,
-  //         senderNum,
-  //         // إذا كانت null ستُحاول الدالة التعامل معها أو البحث لاحقاً.
-  //         dbHelper,
-  //       );
-  //       print("okkkkkkkkkkkkkkkkkk1${keyinfo}");
-  //       print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //     }
-  //     print("okkkkkkkkkkkkkkkkkk$lastNine");
-  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //   }
-  //
-  //   // في حالة عدم العثور عليها محلياً نترك receiverUUID كما null لننتقل للبحث عبر API.
-  //   BigInt? sharedSecret;
-  //
-  //   if (receiverUUID != null) {
-  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //     // نحاول استرجاع المفتاح المشترك محلياً باستخدام (senderUUID, receiverUUID).
-  //     sharedSecret = await dbHelper.getSharedSecret1(
-  //       senderNUM: lastNine,
-  //       receiverNUM: senderNum,
-  //     );
-  //   }
-  //   if (sharedSecret == null) {
-  //     sharedSecret = await dbHelper.getSharedSecret1(
-  //       senderNUM:  senderNum,
-  //       receiverNUM: lastNine,
-  //     );
-  //   }
-  //   // إذا لم يوجد المفتاح المحلي، نقوم بمحاولة جلبه عبر API.
-  //   if (sharedSecret == null) {
-  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //     // نحدد متغيرين للبحث عبر API: الترتيب الأصلي والترتيب المعكوس.
-  //     sharedSecret = await _fetchSharedSecretFromApi(
-  //       senderData['uuid']!,
-  //       receiverUUID ?? '', // إذا كانت null ستُحاول الدالة التعامل معها أو البحث لاحقاً.
-  //       dbHelper,
-  //     );
-  //     // في حال لم يرجع API بيانات باستخدام الترتيب الأصلي نقوم بمحاولة الترتيب المعكوس.
-  //     if (sharedSecret == null) {
-  //       print("okkkkkkkkkkkkkkkkkk$receiverUUID");
-  //       sharedSecret = await _fetchSharedSecretFromApi(
-  //         receiverUUID ?? senderData['uuid']!,
-  //         senderData['uuid']!,
-  //         dbHelper,
-  //       );
-  //     }
-  //   }
-  //
-  //   // إذا وجد المفتاح (سواء محلياً أو عبر API)، نقوم بفك تشفير الرسائل.
-  //   if (sharedSecret != null) {
-  //     print("okkkkkkkkkkkkkkkkkk1$receiverUUID");
-  //     _decryptMessages(messages, sharedSecret);
-  //   } else {
-  //     print("لم يتم العثور على مفتاح التشفير المشترك باستخدام الطرق المتوفرة.");
-  //   }
-  //
-  //   return messages;
-  // }
-
   Future<List<Message>> _processNumericDecryption(List<Message> messages, String address) async {
     // الحصول على بيانات الجهاز: senderData و senderNum.
     final senderData = await getAndPrintUuid(); // مثال: {'uuid': 'sender-123', 'phone_num': '0555123456'}
     final senderNum = await getAndPrintPhoneNumber(); // رقم المرسل الفعلي.
     String lastNine = _getLastNDigits(address, 9);
     final dbHelper = DatabaseHelper();
+    String? receiverUUID;
 
     // محاولة البحث في قاعدة البيانات المحلية باستخدام (senderNUM, receiverNUM).
-    String? receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
+    receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
       senderNUM: senderNum,
       receiverNUM: lastNine,
     );
@@ -982,60 +897,142 @@ class MessageController with ChangeNotifier {
         receiverNUM: senderNum,
       );
       print("بحث بالترتيب المعكوس - lastNine: $lastNine, receiverUUID: $receiverUUID");
-
       // يمكننا أيضاً محاولة جلب البيانات عبر API باستخدام أرقام الهاتف
       if (receiverUUID == null) {
-        var keyinfo = await _fetchSharedSecretFromApiByNum(
-          lastNine,
-          senderNum,
-          dbHelper,
+        final response = await http.post(
+          Uri.parse('https://political-thoracic-spatula.glitch.me/api/check-key'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'senderNUM': lastNine,
+            'receiverNUM': senderNum,
+          }),
         );
-        print("نتيجة البحث عبر API بواسطة الأرقام: $keyinfo");
-        // هنا قد نعيد keyinfo أو نقوم بتجاهلها لأننا لا نقوم بفك التشفير إن لم يتم الحصول على receiverUUID
-      }
-    }
 
-    // محاولة استرجاع المفتاح المشترك من قاعدة البيانات المحلية.
-    BigInt? sharedSecret;
-    if (receiverUUID != null) {
-      sharedSecret = await dbHelper.getSharedSecret1(
-        senderNUM: lastNine,
-        receiverNUM: senderNum,
-      );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          // print('تم العثور على المفتاح: ${data['data']}');
+
+          if (data['success']) {
+            print('تم العثور على المفتاح: ${data['data']['senderUUID']}');
+            // تأكد أن المفتاح هو 'receiverUUID' وليس 'receiverNUM'
+            receiverUUID = data['data']['receiverUUID'];
+            await dbHelper.storeKeysLocally(
+              senderUUID: data['data']['senderUUID'],
+              senderNUM: data['data']['senderNUM'],
+              receiverUUID: data['data']['receiverUUID'], // <-- هنا يجب أن يكون receiverUUID
+              receiverNUM: data['data']['receiverNUM'],
+              sharedSecret: BigInt.parse(data['data']['sharedSecret']), // تأكد من التحويل الصحيح
+            );
+          } else {
+            print('لا يوجد مفتاح مشترك.');
+          }
+        }
+      //   var keyinfo = await _fetchSharedSecretFromApiByNum(
+      //     lastNine,
+      //     senderNum,
+      //     dbHelper,
+      //   );
+      //   print("نتيجة البحث عبر API بواسطة الأرقام: $keyinfo");
+      //   // هنا قد نعيد keyinfo أو نقوم بتجاهلها لأننا لا نقوم بفك التشفير إن لم يتم الحصول على receiverUUID
+      }
+    //   BigInt? sharedSecret;
+    //   sharedSecret = await dbHelper.getSharedSecret1(
+    //     senderNUM: lastNine,
+    //     receiverNUM: senderNum,
+    //   );
+    //   print("receiverUUID: $sharedSecret");
+    //
+    // if (sharedSecret == null) {
+    //   sharedSecret = await dbHelper.getSharedSecret1(
+    //     senderNUM: senderNum,
+    //     receiverNUM: lastNine,
+    //   );
+    //   print("receiverUUID: $sharedSecret");
+    //
+    // }
+      // if (receiverUUID != null) {
+      //   // print("receiverUUID: $receiverUUID");
+      //   print("receiverUUID1: $receiverUUID");
+      // }
+
     }
-    if (sharedSecret == null) {
-      sharedSecret = await dbHelper.getSharedSecret1(
+    // print("receiverUUID: $receiverUUID");
+
+    if (receiverUUID == null) {
+      print("receiverUUID: $receiverUUID");
+      receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
         senderNUM: senderNum,
         receiverNUM: lastNine,
       );
-    }
-
-    // إذا لم يوجد المفتاح المحلي، نحاول جلبه عبر API.
-    if (sharedSecret == null) {
-      print("لم يوجد مفتاح محلي، نحاول جلبه عبر API مع receiverUUID: $receiverUUID");
-      sharedSecret = await _fetchSharedSecretFromApi(
-        senderData['uuid']!,
-        receiverUUID ?? '',
-        dbHelper,
-      );
-      if (sharedSecret == null) {
-        sharedSecret = await _fetchSharedSecretFromApi(
-          receiverUUID ?? senderData['uuid']!,
-          senderData['uuid']!,
-          dbHelper,
+      if (receiverUUID == null) {
+        print("receiverUUID: $receiverUUID");
+        receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
+          senderNUM: lastNine,
+          receiverNUM: senderNum,
         );
       }
+      if (receiverUUID == null) {
+        print("receiverUUID: $receiverUUID");
+        return messages;
+      }
     }
+    // محاولة استرجاع المفتاح المشترك من قاعدة البيانات المحلية.
+    BigInt? sharedSecret;
+      print("receiverUUID: $receiverUUID");
+    if (receiverUUID != null) {
+      print("receiverUUID: $receiverUUID");
+      List<Map<String, dynamic>> results = await dbHelper.fetchKeyInfoByNumbers(
+        senderNUM: senderNum,
+        receiverNUM: lastNine,
+      );
+      if (results.isEmpty) {
+        List<Map<String, dynamic>> results = await dbHelper.fetchKeyInfoByNumbers(
+          senderNUM: lastNine,
+          receiverNUM: senderNum,
+        );
+        print("receiverUUID: $sharedSecret");
 
-    // إذا وجد المفتاح المشترك، نقوم بفك تشفير الرسائل؛ وإلا نعيد الرسائل كما هي.
-    if (sharedSecret != null) {
-      print("تم العثور على مفتاح التشفير المشترك: $sharedSecret");
-      _decryptMessages(messages, sharedSecret);
-    } else {
-      print("لم يتم العثور على مفتاح التشفير المشترك؛ سيتم إرجاع الرسائل بدون فك تشفير.");
+      }
+      if (results.isNotEmpty) {
+        final keyData = results.first;
+        print('🔑 المفتاح المشترك: ${keyData['sharedSecret']}');
+        _decryptMessages(messages, BigInt.parse(keyData['sharedSecret']));
+      }
+      //  else {
+      //   print("لم يتم العثور على مفتاح التشفير المشترك؛ سيتم إرجاع الرسائل بدون فك تشفير.");
+      // }
+
+
+      // sharedSecret = await dbHelper.getSharedSecret1(
+      //   senderNUM: lastNine,
+      //   receiverNUM: senderNum,
+      // );
+      print("receiverUUID: $receiverUUID");
+
+      print("receiverUUID: $sharedSecret");
     }
 
     return messages;
+
+    // إذا لم يوجد المفتاح المحلي، نحاول جلبه عبر API.
+    // if (sharedSecret == null) {
+    //   print("لم يوجد مفتاح محلي، نحاول جلبه عبر API مع receiverUUID: $receiverUUID");
+    //   sharedSecret = await _fetchSharedSecretFromApi(
+    //     senderData['uuid']!,
+    //     receiverUUID ?? '',
+    //     dbHelper,
+    //   );
+    //   if (sharedSecret == null) {
+    //     sharedSecret = await _fetchSharedSecretFromApi(
+    //       receiverUUID ?? senderData['uuid']!,
+    //       senderData['uuid']!,
+    //       dbHelper,
+    //     );
+    //   }
+    // }
+
+    // إذا وجد المفتاح المشترك، نقوم بفك تشفير الرسائل؛ وإلا نعيد الرسائل كما هي.
+
   }
 
   /// دالة لفك تشفير الرسائل باستخدام المفتاح المشترك.
@@ -1185,6 +1182,93 @@ class MessageController with ChangeNotifier {
       throw Exception('خطأ غير متوقع: $e');
     }
   }
+
+  /// 4. دالة معالجة فك التشفير للرسائل ذات العناوين الرقمية.
+  // Future<List<Message>> _processNumericDecryption(List<Message> messages, String address) async {
+  //   // الحصول على بيانات الجهاز: senderUUID و senderNUM.
+  //   final senderData = await getAndPrintUuid(); // مثال: {'uuid': 'sender-123', 'phone_num': '0555123456'}
+  //   final senderNum = await getAndPrintPhoneNumber(); // رقم المرسل الفعلي.
+  //   String lastNine = _getLastNDigits(address, 9);
+  //   final dbHelper = DatabaseHelper();
+  //
+  //   // البحث في قاعدة البيانات المحلية باستخدام (senderNUM, receiverNUM).
+  //   String? receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
+  //     senderNUM: senderNum,
+  //     receiverNUM: lastNine,
+  //   );
+  //   print("okkkkkkkkkkkkkkkkkk$senderNum");
+  //
+  //   // إذا لم توجد بيانات، نبحث بترتيب معكوس.
+  //   if (receiverUUID == null) {
+  //     receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
+  //       senderNUM: lastNine,
+  //       receiverNUM: senderNum,
+  //     );
+  //     print("okkkkkkkkkkkkkkkkkk$lastNine");
+  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //     if (receiverUUID == null) {
+  //       var keyinfo = await _fetchSharedSecretFromApiByNum(
+  //         lastNine,
+  //         senderNum,
+  //         // إذا كانت null ستُحاول الدالة التعامل معها أو البحث لاحقاً.
+  //         dbHelper,
+  //       );
+  //       print("okkkkkkkkkkkkkkkkkk1${keyinfo}");
+  //       print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //     }
+  //     print("okkkkkkkkkkkkkkkkkk$lastNine");
+  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //   }
+  //
+  //   // في حالة عدم العثور عليها محلياً نترك receiverUUID كما null لننتقل للبحث عبر API.
+  //   BigInt? sharedSecret;
+  //
+  //   if (receiverUUID != null) {
+  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //     // نحاول استرجاع المفتاح المشترك محلياً باستخدام (senderUUID, receiverUUID).
+  //     sharedSecret = await dbHelper.getSharedSecret1(
+  //       senderNUM: lastNine,
+  //       receiverNUM: senderNum,
+  //     );
+  //   }
+  //   if (sharedSecret == null) {
+  //     sharedSecret = await dbHelper.getSharedSecret1(
+  //       senderNUM:  senderNum,
+  //       receiverNUM: lastNine,
+  //     );
+  //   }
+  //   // إذا لم يوجد المفتاح المحلي، نقوم بمحاولة جلبه عبر API.
+  //   if (sharedSecret == null) {
+  //     print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //     // نحدد متغيرين للبحث عبر API: الترتيب الأصلي والترتيب المعكوس.
+  //     sharedSecret = await _fetchSharedSecretFromApi(
+  //       senderData['uuid']!,
+  //       receiverUUID ?? '', // إذا كانت null ستُحاول الدالة التعامل معها أو البحث لاحقاً.
+  //       dbHelper,
+  //     );
+  //     // في حال لم يرجع API بيانات باستخدام الترتيب الأصلي نقوم بمحاولة الترتيب المعكوس.
+  //     if (sharedSecret == null) {
+  //       print("okkkkkkkkkkkkkkkkkk$receiverUUID");
+  //       sharedSecret = await _fetchSharedSecretFromApi(
+  //         receiverUUID ?? senderData['uuid']!,
+  //         senderData['uuid']!,
+  //         dbHelper,
+  //       );
+  //     }
+  //   }
+  //
+  //   // إذا وجد المفتاح (سواء محلياً أو عبر API)، نقوم بفك تشفير الرسائل.
+  //   if (sharedSecret != null) {
+  //     print("okkkkkkkkkkkkkkkkkk1$receiverUUID");
+  //     _decryptMessages(messages, sharedSecret);
+  //   } else {
+  //     print("لم يتم العثور على مفتاح التشفير المشترك باستخدام الطرق المتوفرة.");
+  //   }
+  //
+  //   return messages;
+  // }
+
+
 
 
   // Future<dynamic> _fetchSharedSecretFromApi(

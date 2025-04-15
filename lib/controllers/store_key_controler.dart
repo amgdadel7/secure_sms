@@ -49,6 +49,27 @@ class DatabaseHelper {
         ? BigInt.parse(result.first['sharedSecret'] as String)
         : null;
   }
+  Future<List<Map<String, dynamic>>> fetchKeyInfoByNumbers({
+    required String senderNUM,
+    required String receiverNUM,
+  }) async {
+    final db = await database; // تأكد أنك محضر الدالة التي ترجع قاعدة البيانات
+
+    final result = await db.query(
+      'key_info',
+      where: '(senderNUM = ? AND receiverNUM = ?) OR (senderNUM = ? AND receiverNUM = ?)',
+      whereArgs: [senderNUM, receiverNUM, receiverNUM, senderNUM],
+    );
+
+    if (result.isNotEmpty) {
+      print('✅ تم العثور على ${result.length} نتيجة');
+    } else {
+      print('❌ لم يتم العثور على أي نتائج');
+    }
+
+    return result;
+  }
+
   Future<void> onCreate(Database db, int version) async {
     await db.execute('''
     CREATE TABLE IF NOT EXISTS key_info (
@@ -146,6 +167,38 @@ class DatabaseHelper {
 
 
   // دالة لحفظ المفاتيح محلياً
+  // Future<void> storeKeysLocally({
+  //   required String senderUUID,
+  //   required String senderNUM,
+  //   required String? receiverUUID,
+  //   required String receiverNUM,
+  //   required BigInt sharedSecret,
+  // }) async {
+  //   final db = await database;
+  //
+  //   final List<Map<String, dynamic>> existing = await db.query(
+  //     'key_info',
+  //     where: 'senderUUID = ? AND receiverUUID = ?',
+  //     whereArgs: [senderUUID, receiverUUID],
+  //   );
+  //
+  //   if (existing.isEmpty) {
+  //     await db.insert(
+  //       'key_info',
+  //       {
+  //         'senderUUID': senderUUID,
+  //         'senderNUM':senderNUM,
+  //         'receiverUUID': receiverUUID,
+  //         'receiverNUM': receiverNUM,
+  //         'sharedSecret': sharedSecret.toString(), // التحويل إلى String
+  //       },
+  //       conflictAlgorithm: ConflictAlgorithm.replace,
+  //     );
+  //     print('$sharedSecret 🔑 تم حفظ المفاتيح محلياً');
+  //   } else {
+  //     print('المفاتيح موجودة مسبقاً');
+  //   }
+  // }
   Future<void> storeKeysLocally({
     required String senderUUID,
     required String senderNUM,
@@ -155,10 +208,14 @@ class DatabaseHelper {
   }) async {
     final db = await database;
 
+    // بناء الاستعلام بشكل ديناميكي للتعامل مع NULL
+    String whereClause = 'senderUUID = ? AND receiverUUID ${receiverUUID == null ? 'IS' : '='} ?';
+    List<dynamic> whereArgs = [senderUUID, receiverUUID];
+
     final List<Map<String, dynamic>> existing = await db.query(
       'key_info',
-      where: 'senderUUID = ? AND receiverUUID = ?',
-      whereArgs: [senderUUID, receiverUUID],
+      where: whereClause,
+      whereArgs: whereArgs,
     );
 
     if (existing.isEmpty) {
@@ -166,16 +223,16 @@ class DatabaseHelper {
         'key_info',
         {
           'senderUUID': senderUUID,
-          'senderNUM':senderNUM,
+          'senderNUM': senderNUM,
           'receiverUUID': receiverUUID,
           'receiverNUM': receiverNUM,
-          'sharedSecret': sharedSecret.toString(), // التحويل إلى String
+          'sharedSecret': sharedSecret.toString(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
       print('$sharedSecret 🔑 تم حفظ المفاتيح محلياً');
     } else {
-      print('المفاتيح موجودة مسبقاً');
+      print('المفاتيج موجودة مسبقاً');
     }
   }
 
