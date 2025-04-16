@@ -29,20 +29,3 @@ class DeviceService {
     return _uuid.v4(); // مثال: "550e8400-e29b-41d4-a716-446655440000"
   }
 }
-  // static Future<String?> getDeviceId() async {
-  //   final deviceInfo = DeviceInfoPlugin();
-  //   try {
-  //     if (Platform.isAndroid) {
-  //       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-  //       print("assssss${androidInfo.id}");
-  //       return androidInfo.id;
-  //     } else if (Platform.isIOS) {
-  //       IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-  //       return iosInfo.identifierForVendor ?? 'N/A';
-  //     }
-  //     return 'Unsupported Platform';
-  //   } catch (e) {
-  //     return 'Error: ${e.toString()}';
-  //   }
-  // }
-// }

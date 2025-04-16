@@ -76,32 +76,4 @@ class DiffieHellmanHelper {
     final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
     return encrypter.decrypt(encrypted, iv: iv);
   }
-  // static String decryptMessage(String encryptedMessage, String sharedSecret) {
-  //   try {
-  //     // اشتقاق مفتاح AES من المفتاح المشترك
-  //     String aesKey = deriveAESKey(BigInt.parse(sharedSecret));
-  //     // تقسيم الرسالة إلى IV والبيانات المشفرة
-  //     final parts = encryptedMessage.split(':');
-  //     if (parts.length != 2) {
-  //       throw FormatException("صيغة الرسالة غير صحيحة. يجب أن تكون IV:encryptedData");
-  //     }
-  //     final ivBase64 = parts[0].trim();
-  //     final cipherTextBase64 = parts[1].trim();
-  //
-  //     // تسجيل القيم للتأكد من صحتها
-  //     print("IV (base64): $ivBase64");
-  //     print("CipherText (base64): $cipherTextBase64");
-  //
-  //     final iv = encrypt.IV.fromBase64(ivBase64);
-  //     final encrypted = encrypt.Encrypted.fromBase64(cipherTextBase64);
-  //     final key = encrypt.Key.fromUtf8(aesKey.substring(0, 32));
-  //
-  //     // إنشاء المحرك وتحديد وضع AES CBC مع PKCS7
-  //     final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
-  //     return encrypter.decrypt(encrypted, iv: iv);
-  //   } catch (e) {
-  //     print("فشل في فك تشفير الرسالة: $e");
-  //     rethrow; // أو يمكنك إعادة قيمة مناسبة
-  //   }
-  // }
 }

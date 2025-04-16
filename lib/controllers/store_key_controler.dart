@@ -164,41 +164,6 @@ class DatabaseHelper {
     print('🔑 SharedSecret key is: $sharedSecret');
     return sharedSecret;
   }
-
-
-  // دالة لحفظ المفاتيح محلياً
-  // Future<void> storeKeysLocally({
-  //   required String senderUUID,
-  //   required String senderNUM,
-  //   required String? receiverUUID,
-  //   required String receiverNUM,
-  //   required BigInt sharedSecret,
-  // }) async {
-  //   final db = await database;
-  //
-  //   final List<Map<String, dynamic>> existing = await db.query(
-  //     'key_info',
-  //     where: 'senderUUID = ? AND receiverUUID = ?',
-  //     whereArgs: [senderUUID, receiverUUID],
-  //   );
-  //
-  //   if (existing.isEmpty) {
-  //     await db.insert(
-  //       'key_info',
-  //       {
-  //         'senderUUID': senderUUID,
-  //         'senderNUM':senderNUM,
-  //         'receiverUUID': receiverUUID,
-  //         'receiverNUM': receiverNUM,
-  //         'sharedSecret': sharedSecret.toString(), // التحويل إلى String
-  //       },
-  //       conflictAlgorithm: ConflictAlgorithm.replace,
-  //     );
-  //     print('$sharedSecret 🔑 تم حفظ المفاتيح محلياً');
-  //   } else {
-  //     print('المفاتيح موجودة مسبقاً');
-  //   }
-  // }
   Future<void> storeKeysLocally({
     required String senderUUID,
     required String senderNUM,

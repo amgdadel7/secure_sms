@@ -101,29 +101,6 @@ class LocalDatabaseService {
     }
     return null;
   }
-
-  // Future<void> upsertDeviceInfo({
-  //   required String uuid,
-  //   required String code,
-  //   required String phoneNum,
-  // }) async {
-  //   try {
-  //     final db = await database;
-  //     await db.insert(
-  //       'device_info',
-  //       {
-  //         'uuid': uuid,
-  //         'code': code,
-  //         'phone_num': phoneNum,
-  //       },
-  //       conflictAlgorithm: ConflictAlgorithm.replace,
-  //     );
-  //     print('✅ تم حفظ/تحديث البيانات محليًا');
-  //   } catch (e) {
-  //     print('❌ خطأ في الحفظ المحلي: ${e.toString()}');
-  //     throw Exception('فشل في الحفظ المحلي');
-  //   }
-  // }
   Future<void> upsertDeviceInfo({
     required String uuid,
     required String code,
