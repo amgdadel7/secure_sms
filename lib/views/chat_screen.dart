@@ -1,93 +1,91 @@
-// استيراد المكتبات اللازمة
-import 'dart:async'; // للتعامل مع العمليات غير المتزامنة
-import 'dart:convert'; // لتحويل النصوص إلى JSON والعكس
-import 'package:flutter/material.dart'; // لإنشاء واجهات المستخدم
-import 'package:flutter/services.dart'; // للتعامل مع الحافظة (Clipboard)
-import 'package:pointycastle/ecc/api.dart'; // مكتبة للتشفير باستخدام Diffie-Hellman
-import 'package:provider/provider.dart'; // لإدارة الحالة باستخدام Provider
-import 'dart:ui' as ui; // للتعامل مع واجهات المستخدم
-import 'package:telephony/telephony.dart'; // مكتبة للتعامل مع الرسائل النصية SMS
-import 'package:untitled14/controllers/registration_controller.dart'; // وحدة التحكم بالتسجيل
-import 'package:untitled14/controllers/store_key_controler.dart'; // وحدة التحكم بتخزين المفاتيح
-import 'package:untitled14/utils/encryption.dart'; // أدوات التشفير
-import '../controllers/message_controller.dart'; // وحدة التحكم بالرسائل
-import '../models/message_model.dart'; // نموذج الرسائل
-import 'package:http/http.dart' as http; // مكتبة لإجراء طلبات HTTP
-import 'package:chat_bubbles/chat_bubbles.dart'; // مكتبة لإنشاء فقاعات الدردشة
-import 'package:intl/intl.dart'; // مكتبة لتنسيق التاريخ والوقت
-import 'package:url_launcher/url_launcher.dart'; // مكتبة لفتح الروابط والتطبيقات
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pointycastle/ecc/api.dart';
+import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
+import 'package:telephony/telephony.dart';
+import 'package:untitled14/controllers/registration_controller.dart';
+import 'package:untitled14/controllers/store_key_controler.dart';
+import 'package:untitled14/utils/encryption.dart';
+import '../controllers/message_controller.dart';
+import '../models/message_model.dart';
+import 'package:http/http.dart' as http;
+import 'package:chat_bubbles/chat_bubbles.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-// تعريف ألوان واجهة Google Messages
 class GoogleMessagesColors {
-  static const primary = Color(0xFF00897B); // اللون الأساسي
-  static const primaryDark = Color(0xFF00796B); // اللون الأساسي الداكن
-  static const accent = Color(0xFF80CBC4); // اللون الثانوي
-  static const background = Color(0xFFEEEEEE); // لون الخلفية
-  static const sentMessage = Color(0xFFDCF8C6); // لون الرسائل المرسلة
-  static const receivedMessage = Colors.white; // لون الرسائل المستلمة
-  static const textDark = Color(0xFF212121); // لون النص الداكن
-  static const textLight = Color(0xFF757575); // لون النص الفاتح
-  static const timeStamp = Color(0xFF9E9E9E); // لون الطابع الزمني
-  static const appBar = Colors.white; // لون شريط التطبيق
-  static const divider = Color(0xFFE0E0E0); // لون الفاصل
-  static const unreadIndicator = Color(0xFF4CAF50); // لون مؤشر الرسائل غير المقروءة
+  static const primary = Color(0xFF00897B);      // Teal 600
+  static const primaryDark = Color(0xFF00796B);    // Teal 700
+  static const accent = Color(0xFF80CBC4);         // Teal 200
+  static const background = Color(0xFFEEEEEE);     // Grey 200
+  static const sentMessage = Color(0xFFDCF8C6);      // Light Green
+  static const receivedMessage = Colors.white;
+  static const textDark = Color(0xFF212121);         // Grey 900
+  static const textLight = Color(0xFF757575);        // Grey 600
+  static const timeStamp = Color(0xFF9E9E9E);        // Grey 500
+  static const appBar = Colors.white;
+  static const divider = Color(0xFFE0E0E0);          // Grey 300
+  static const unreadIndicator = Color(0xFF4CAF50);    // Green 500
 }
 
-// دالة تستدعي عند استقبال رسالة في الخلفية
+/// دالة تستدعي عند استقبال رسالة في الخلفية
 onBackgroundMessage(SmsMessage message) {
-  debugPrint("onBackgroundMessage called"); // طباعة رسالة عند استقبال رسالة في الخلفية
+  debugPrint("onBackgroundMessage called");
 }
 
-// تعريف واجهة الدردشة
 class ChatScreen extends StatefulWidget {
-  final String address; // عنوان المحادثة (مثل رقم الهاتف)
-  final String recipient; // اسم المستلم
-  final String? recipientImageUrl; // صورة المستلم (اختياري)
-  final String? searchQuery; // استعلام البحث (اختياري)
+  final String address;
+  final String recipient;
+  final String? recipientImageUrl;
+  final String? searchQuery; // إضافة معلمة جديدة
 
   const ChatScreen({
     Key? key,
-    required this.address, // عنوان المحادثة
-    required this.recipient, // اسم المستلم
-    this.recipientImageUrl, // صورة المستلم
-    this.searchQuery, // استعلام البحث
+    required this.address,
+    required this.recipient,
+    this.recipientImageUrl,
+    this.searchQuery, // تهيئة المعلمة
   }) : super(key: key);
 
   @override
-  _ChatScreenState createState() => _ChatScreenState(); // إنشاء الحالة
+  _ChatScreenState createState() => _ChatScreenState();
 }
 
-// تعريف حالة واجهة الدردشة
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController(); // وحدة التحكم بحقل إدخال الرسائل
-  final ScrollController _scrollController = ScrollController(); // وحدة التحكم بالتمرير
-  final MessageController mess = MessageController(); // وحدة التحكم بالرسائل
-  List<Message> _messages = []; // قائمة الرسائل
-  String _message = ""; // الرسالة الحالية
-  final telephony = Telephony.instance; // تهيئة مكتبة الرسائل النصية
-  bool _isSelectionMode = false; // وضع التحديد
-  Set<int> _selectedMessageIndices = {}; // الرسائل المحددة
-  bool _isSearchMode = false; // وضع البحث
-  String _searchQuery = ''; // استعلام البحث
-  List<int> _searchResults = []; // نتائج البحث
-  int _currentSearchIndex = -1; // مؤشر البحث الحالي
-  final FocusNode _searchFocusNode = FocusNode(); // وحدة التحكم بالتركيز على البحث
-  final TextEditingController _searchController = TextEditingController(); // وحدة التحكم بحقل البحث
-  bool _loadingMessages = true; // حالة تحميل الرسائل
-  late Timer _timer; // مؤقت
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final MessageController mess = MessageController();
+  List<Message> _messages = [];
+  String _message = "";
+  final telephony = Telephony.instance;
+  bool _isSelectionMode = false;
+  Set<int> _selectedMessageIndices = {};
+  // متغيرات البحث
+  bool _isSearchMode = false;
+  String _searchQuery = '';
+  List<int> _searchResults = [];
+  int _currentSearchIndex = -1;
+  final FocusNode _searchFocusNode = FocusNode();
+  final TextEditingController _searchController = TextEditingController();
+  bool _loadingMessages = true;
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages(); // تحميل الرسائل
-    initPlatformState(); // طلب الصلاحيات
+    _loadMessages();
+    initPlatformState();
+    // تهيئة قاعدة البيانات عند تحميل الواجهة
     WidgetsBinding.instance?.addPostFrameCallback((_) async {
       final messageController = Provider.of<MessageController>(context, listen: false);
       await messageController.initDatabases(); // تهيئة قاعدة البيانات
-      messageController.printMessages(); // طباعة الرسائل
-      messageController.printConversationKeys(); // طباعة مفاتيح المحادثة
+      messageController.printMessages();
+      messageController.printConversationKeys();
       if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        _isSearchMode = true; // تفعيل وضع البحث
+        _isSearchMode = true;
         _searchController.text = widget.searchQuery!;
       }
     });
@@ -100,249 +98,244 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _timer.cancel(); // إلغاء المؤقت
-    _searchFocusNode.dispose(); // التخلص من وحدة التحكم بالتركيز
-    _searchController.dispose(); // التخلص من وحدة التحكم بحقل البحث
+    _timer.cancel();
+    _searchFocusNode.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  // دالة تستدعي عند استقبال رسالة جديدة
+  onBackgroundMessage(SmsMessage message) {
+    debugPrint("onBackgroundMessage called");
+  }
+
+  String _senderNumber = ""; // متغير لحفظ رقم المرسل
+
   onMessage(SmsMessage message) async {
     setState(() {
-      _senderNumber = message.address ?? "Unknown"; // حفظ رقم المرسل
-      _message = message.body ?? ""; // حفظ محتوى الرسالة
+      _senderNumber = message.address ?? "Unknown";
+      _message = message.body ?? "";
       print("🚀 تم استلام رسالة من $_senderNumber: $_message");
-      _loadMessages(); // إعادة تحميل الرسائل
-      mess.processIncomingSms(message); // معالجة الرسالة الواردة
+      _loadMessages();
+      mess.processIncomingSms(message);
     });
   }
 
-  // دالة لتنفيذ البحث في الرسائل
   void _performSearch(String query) {
-    final lowerQuery = query.toLowerCase(); // تحويل النص إلى أحرف صغيرة
+    final lowerQuery = query.toLowerCase();
     List<int> results = [];
     for (int i = 0; i < _messages.length; i++) {
       if (_messages[i].content.toLowerCase().contains(lowerQuery)) {
-        results.add(i); // إضافة الرسائل المطابقة إلى النتائج
+        results.add(i);
       }
     }
     setState(() {
-      _searchQuery = query; // تحديث استعلام البحث
-      _searchResults = results; // تحديث نتائج البحث
-      _currentSearchIndex = results.isNotEmpty ? 0 : -1; // تعيين المؤشر الحالي
+      _searchQuery = query;
+      _searchResults = results;
+      _currentSearchIndex = results.isNotEmpty ? 0 : -1;
     });
     if (results.isNotEmpty) {
-      _jumpToResult(_currentSearchIndex); // الانتقال إلى النتيجة الأولى
+      _jumpToResult(_currentSearchIndex);
     }
   }
 
-  // دالة للانتقال إلى نتيجة البحث المحددة
   void _jumpToResult(int index) {
     if (index >= 0 && index < _searchResults.length) {
-      setState(() => _currentSearchIndex = index); // تحديث المؤشر الحالي
+      setState(() => _currentSearchIndex = index);
       final messageIndex = _searchResults[index];
       WidgetsBinding.instance?.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(
             _scrollController.position.maxScrollExtent *
-                (messageIndex / _messages.length), // الانتقال إلى الرسالة
+                (messageIndex / _messages.length),
           );
         }
       });
     }
   }
 
-    // دالة للانتقال إلى النتيجة السابقة في البحث
   void _jumpToPreviousResult() {
     if (_currentSearchIndex > 0) {
-      _jumpToResult(_currentSearchIndex - 1); // الانتقال إلى النتيجة السابقة
+      _jumpToResult(_currentSearchIndex - 1);
     }
   }
-  
-  // دالة للانتقال إلى النتيجة التالية في البحث
+
   void _jumpToNextResult() {
     if (_currentSearchIndex < _searchResults.length - 1) {
-      _jumpToResult(_currentSearchIndex + 1); // الانتقال إلى النتيجة التالية
+      _jumpToResult(_currentSearchIndex + 1);
     }
   }
-  
-  // دالة لتبديل وضع البحث
+
   void _toggleSearchMode() {
     setState(() {
-      _isSearchMode = !_isSearchMode; // تبديل حالة البحث
+      _isSearchMode = !_isSearchMode;
       if (!_isSearchMode) {
-        _searchQuery = ''; // إعادة تعيين استعلام البحث
-        _searchResults.clear(); // مسح نتائج البحث
-        _currentSearchIndex = -1; // إعادة تعيين المؤشر الحالي
+        _searchQuery = '';
+        _searchResults.clear();
+        _currentSearchIndex = -1;
       }
     });
   }
-  
-  // طلب صلاحيات الهاتف والرسائل والاستماع للرسائل الواردة
+
+  /// طلب صلاحيات الهاتف والرسائل والاستماع للرسائل الواردة
   Future<void> initPlatformState() async {
-    bool? result = await telephony.requestPhoneAndSmsPermissions; // طلب الصلاحيات
+    bool? result = await telephony.requestPhoneAndSmsPermissions;
     if (result != null && result) {
       telephony.listenIncomingSms(
-        onNewMessage: onMessage, // استدعاء دالة عند استقبال رسالة جديدة
-        onBackgroundMessage: onBackgroundMessage, // استدعاء دالة عند استقبال رسالة في الخلفية
+        onNewMessage: onMessage,
+        onBackgroundMessage: onBackgroundMessage,
         listenInBackground: true, // تمكين الاستماع في الخلفية
       );
     }
-  
-    if (!mounted) return; // التحقق من أن الواجهة لا تزال موجودة
+
+    if (!mounted) return;
   }
-  
-  // دالة لتحميل الرسائل
+
   Future<void> _loadMessages() async {
     final messageController = Provider.of<MessageController>(context, listen: false);
-    List<Message> msgs = await messageController.getMessagesForThread(widget.address); // جلب الرسائل
-    msgs.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // ترتيب الرسائل حسب الوقت
+    List<Message> msgs = await messageController.getMessagesForThread(widget.address);
+    msgs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     setState(() {
-      _messages = msgs; // تحديث قائمة الرسائل
-      _loadingMessages = false; // إيقاف حالة التحميل
+      _messages = msgs;
+      _loadingMessages = false;
     });
     WidgetsBinding.instance?.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent); // الانتقال إلى آخر الرسائل
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
       // تفعيل البحث إذا كان هناك استعلام
       if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
         _isSearchMode = true;
         _searchQuery = widget.searchQuery!;
         _searchController.text = _searchQuery;
-        _performSearch(_searchQuery); // تنفيذ البحث
+        _performSearch(_searchQuery);
       }
     });
   }
-  
-  // تفعيل وضع التحديد عند الضغط المطول على رسالة
+
+  /// تفعيل وضع التحديد عند الضغط المطول على رسالة
   void _onLongPressMessage(int index) {
     setState(() {
-      _isSelectionMode = true; // تفعيل وضع التحديد
-      _selectedMessageIndices.add(index); // إضافة الرسالة المحددة
+      _isSelectionMode = true;
+      _selectedMessageIndices.add(index);
     });
   }
-  
-  // عند النقر على الرسالة في وضع التحديد، يتم تبديل اختيارها
+
+  /// عند النقر على الرسالة في وضع التحديد، يتم تبديل اختيارها
   void _onTapMessage(int index) {
     if (_isSelectionMode) {
       setState(() {
         if (_selectedMessageIndices.contains(index)) {
-          _selectedMessageIndices.remove(index); // إزالة الرسالة من التحديد
+          _selectedMessageIndices.remove(index);
           if (_selectedMessageIndices.isEmpty) {
-            _isSelectionMode = false; // إلغاء وضع التحديد إذا لم تكن هناك رسائل محددة
+            _isSelectionMode = false;
           }
         } else {
-          _selectedMessageIndices.add(index); // إضافة الرسالة إلى التحديد
+          _selectedMessageIndices.add(index);
         }
       });
     }
   }
-  
-  // دالة لنسخ الرسائل المحددة
+
+  /// دالة لنسخ الرسائل المحددة
   void _copySelectedMessages() {
     String copiedText = _selectedMessageIndices
-        .map((index) => _messages[index].content) // جلب محتوى الرسائل المحددة
-        .join("\n"); // دمج الرسائل في نص واحد
-    Clipboard.setData(ClipboardData(text: copiedText)); // نسخ النص إلى الحافظة
+        .map((index) => _messages[index].content)
+        .join("\n");
+    Clipboard.setData(ClipboardData(text: copiedText));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("تم نسخ الرسائل")), // عرض رسالة تأكيد النسخ
+      const SnackBar(content: Text("تم نسخ الرسائل")),
     );
-    _exitSelectionMode(); // الخروج من وضع التحديد
+    _exitSelectionMode();
   }
-  
-  // دالة لحذف الرسائل المحددة
+
+  /// دالة لحذف الرسائل المحددة
   void _deleteSelectedMessages() {
     setState(() {
       // حذف الرسائل من القائمة المحلية (يمكن تعديلها لحذفها من قاعدة البيانات أيضاً)
-      List<int> indices = _selectedMessageIndices.toList()..sort((a, b) => b.compareTo(a)); // ترتيب الرسائل
+      List<int> indices = _selectedMessageIndices.toList()..sort((a, b) => b.compareTo(a));
       for (var index in indices) {
-        _messages.removeAt(index); // حذف الرسالة
+        _messages.removeAt(index);
       }
-      _exitSelectionMode(); // الخروج من وضع التحديد
+      _exitSelectionMode();
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("تم حذف الرسائل")), // عرض رسالة تأكيد الحذف
+      const SnackBar(content: Text("تم حذف الرسائل")),
     );
   }
-  
-  // الخروج من وضع التحديد
+
+  /// الخروج من وضع التحديد
   void _exitSelectionMode() {
     setState(() {
-      _isSelectionMode = false; // إلغاء وضع التحديد
-      _selectedMessageIndices.clear(); // مسح الرسائل المحددة
+      _isSelectionMode = false;
+      _selectedMessageIndices.clear();
     });
   }
-  
-  // دالة للبحث عن UUID الجهاز باستخدام API
+
   Future<String?> findDeviceUuid(String searchValue) async {
     try {
       final response = await http.post(
-        Uri.parse('https://political-thoracic-spatula.glitch.me/api/find-device'), // عنوان API
-        headers: {'Content-Type': 'application/json'}, // تحديد نوع المحتوى
-        body: jsonEncode({'searchValue': searchValue}), // إرسال القيمة للبحث
+        Uri.parse('https://political-thoracic-spatula.glitch.me/api/find-device'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'searchValue': searchValue}),
       );
-  
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body); // فك تشفير الاستجابة
-        String receverUUID = data['uuid'] as String; // استخراج UUID
-        print('UUID2: $receverUUID'); // طباعة UUID
-        return receverUUID; // إرجاع UUID
+        final data = jsonDecode(response.body);
+        String receverUUID = data['uuid'] as String;
+        print('UUID2: $receverUUID');
+        return receverUUID;
       } else {
-        print('فشل البحث: ${response.statusCode}'); // طباعة رسالة خطأ
+        print('فشل البحث: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('خطأ في الاتصال: $e'); // طباعة رسالة خطأ في الاتصال
+      print('خطأ في الاتصال: $e');
       return null;
     }
   }
-  
-  // دالة للحصول على وطباعة UUID الجهاز
+
   Future<dynamic> getAndPrintUuid() async {
-    final LocalDatabaseService localDatabaseService = LocalDatabaseService(); // تهيئة خدمة قاعدة البيانات المحلية
-    final deviceInfo = await localDatabaseService.getDeviceInfo(); // جلب معلومات الجهاز
-  
+    // الحصول على معلومات الجهاز المحفوظة محليًا
+    final LocalDatabaseService localDatabaseService = LocalDatabaseService();
+    final deviceInfo = await localDatabaseService.getDeviceInfo();
+
     if (deviceInfo != null) {
-      final senderUUID = deviceInfo['uuid']!; // استخراج UUID
-      final senderNUM = deviceInfo['phone_num']!; // استخراج رقم الهاتف
-      print('UUID: $senderUUID'); // طباعة UUID
-      print('Phone Number: $senderNUM'); // طباعة رقم الهاتف
-      return deviceInfo; // إرجاع معلومات الجهاز
+      final senderUUID = deviceInfo['uuid']!;
+      final senderNUM = deviceInfo['phone_num']!; // جلب رقم الهاتف من الجهاز
+      print('UUID: $senderUUID');
+      print('Phone Number: $senderNUM');
+      return deviceInfo;
     } else {
-      print('لا توجد معلومات جهاز محفوظة محلياً'); // طباعة رسالة في حالة عدم وجود بيانات
+      print('لا توجد معلومات جهاز محفوظة محلياً');
     }
   }
 
-    // دالة للحصول على آخر 9 أرقام من العنوان (مثل رقم الهاتف)
   String getLastNineDigits(String address) {
-    // إزالة أي مسافات أو أحرف غير رقمية
+    // إزالة أي مسافات أو أحرف غير رقمية إن لزم الأمر
     String digits = address.replaceAll(RegExp(r'\D'), '');
     if (digits.length > 9) {
-      return digits.substring(digits.length - 9); // إرجاع آخر 9 أرقام
+      return digits.substring(digits.length - 9);
     }
-    return digits; // إذا كان الرقم أقل من 9 أرقام، يتم إرجاعه كما هو
+    return digits;
   }
-  
-  // دالة لإرسال الرسالة
   Future<void> _sendMessage() async {
-    final messageController = Provider.of<MessageController>(context, listen: false); // الحصول على وحدة التحكم بالرسائل
-    final text = _messageController.text.trim(); // جلب النص المدخل وإزالة المسافات الزائدة
-    if (text.isEmpty) return; // إذا كان النص فارغاً، يتم إيقاف التنفيذ
-  
+    final messageController = Provider.of<MessageController>(context, listen: false);
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
     try {
-      final address = widget.address; // جلب عنوان المحادثة
-      final lastNine = getLastNineDigits(address); // استخراج آخر 9 أرقام من العنوان
-  
+      final address = widget.address;
+      final lastNine = getLastNineDigits(address);
+
       // الحصول على معرّفات الجهاز: senderUUID, senderNUM, receiverUUID
       final deviceIds = await _getDeviceIds(lastNine);
-      final senderUUID = deviceIds['senderUUID']!; // UUID الخاص بالمرسل
-      final senderNUM = deviceIds['senderNUM']!; // رقم الهاتف الخاص بالمرسل
-      final receiverUUID = deviceIds['receiverUUID']!; // UUID الخاص بالمستلم
-  
+      final senderUUID = deviceIds['senderUUID']!;
+      final senderNUM = deviceIds['senderNUM']!;
+      final receiverUUID = deviceIds['receiverUUID']!;
+
       // تجهيز مفتاح التشفير (shared secret)
-      final secret = await _prepareSharedKey(senderUUID, senderNUM, receiverUUID, lastNine);
-  
+      final secret = await _prepareSharedKey(deviceIds['senderUUID']!, deviceIds['senderNUM']!, deviceIds['receiverUUID']!, lastNine);
+
       // تشفير الرسالة باستخدام المفتاح المشترك وإرسالها
       await _processAndSendMessage(
         text,
@@ -350,402 +343,390 @@ class _ChatScreenState extends State<ChatScreen> {
         messageController,
         widget.address,
       );
-  
-      // تحديث واجهة المستخدم (إضافة الرسالة الجديدة إلى القائمة وتحديث التمرير)
+
+      // تحديث واجهة المستخدم (إضافة الرسالة الجديدة إلى القائمة وتحديث الـ scroll)
       _updateUIWithNewMessage(widget.address, text);
-  
-      _messageController.clear(); // مسح النص المدخل
-      _scrollToBottom(); // التمرير إلى أسفل القائمة
+
+      _messageController.clear();
+      _scrollToBottom();
     } catch (e) {
-      // في حالة حدوث خطأ، يتم طباعة رسالة الخطأ وعرض رسالة للمستخدم
       print('خطأ غير متوقع: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('حدث خطأ أثناء إرسال الرسالة: ${e.toString()}')),
       );
     }
   }
-  
-  // دالة للحصول على معرّفات الجهاز (sender و receiver)
+
+  /// دالة للحصول على معرّفات الجهاز (sender و receiver)
   Future<Map<String, String>> _getDeviceIds(String lastNine) async {
     // الحصول على معرّف الجهاز ورقم الهاتف الخاص بالمرسل
     final senderData = await getAndPrintUuid();
-    if (senderData == null || senderData['uuid'] == null || senderData['phone_num'] == null) {
+    if (senderData == null ||
+        senderData['uuid'] == null ||
+        senderData['phone_num'] == null) {
       throw Exception('فشل في استرجاع UUID أو رقم الهاتف');
     }
-  
+
     // البحث عن receiverUUID في قاعدة البيانات
     final dbHelper = DatabaseHelper();
     String? receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
       senderNUM: senderData['phone_num']!,
       receiverNUM: lastNine,
     );
-  
-    // إذا لم يتم العثور على UUID، يتم البحث بطريقة بديلة
     if (receiverUUID == null) {
+      // محاولة البحث بطريقة بديلة
       receiverUUID = await dbHelper.queryreceiverUUID_by_serderUUID(
         senderNUM: lastNine,
         receiverNUM: senderData['phone_num']!,
       );
+
     }
-  
-    // إذا لم يتم العثور على UUID، يتم البحث باستخدام الخادم
     if (receiverUUID == null) {
+      // محاولة البحث بطريقة بديلة
       receiverUUID = await findDeviceUuid(lastNine);
       if (receiverUUID == null) {
         throw Exception('فشل العثور على UUID بعد البحث');
       }
     }
-  
     return {
-      'senderUUID': senderData['uuid'], // UUID الخاص بالمرسل
-      'senderNUM': senderData['phone_num'], // رقم الهاتف الخاص بالمرسل
-      'receiverUUID': receiverUUID, // UUID الخاص بالمستلم
+      'senderUUID': senderData['uuid'],
+      'senderNUM': senderData['phone_num'],
+      'receiverUUID': receiverUUID,
     };
   }
-  
-  // دالة لإعداد مفتاح التشفير (المفتاح المشترك) سواء عبر الاستعلام المحلي أو عبر تبادل المفاتيح مع الخادم
+
+  /// دالة لإعداد مفتاح التشفير (المفتاح المشترك) سواء عبر الاستعلام المحلي أو عبر تبادل المفاتيح مع الخادم
   Future<BigInt> _prepareSharedKey(
-    String senderUUID,
-    String senderNUM,
-    String receiverUUID,
-    String lastNine,
-  ) async {
+      String senderUUID,
+      String senderNUM,
+      String receiverUUID,
+      String lastNine,
+      ) async {
     final dbHelper = DatabaseHelper();
-  
+
     // محاولة الحصول على المفتاح المشترك محلياً
     String? key = await dbHelper.queryKeysLocally(
       senderUUID: senderUUID,
       receiverNUM: lastNine,
     );
-  
-    // إذا لم يتم العثور على المفتاح محلياً، يتم البحث بطريقة بديلة
+
+    // في حالة عدم وجود المفتاح، نقوم بتبادل المفاتيح مع الخادم وإنشاء الزوج اللازم
     if (key == null || key.isEmpty) {
       key = await dbHelper.queryKeysLocally1(
-        senderNUM: lastNine,
+        senderNUM:lastNine,
         receiverNUM: senderNUM,
       );
     }
-  
-    // إذا لم يتم العثور على المفتاح، يتم توليد مفتاح جديد وتبادل المفاتيح مع الخادم
     if (key == null || key.isEmpty) {
-      final messageController = Provider.of<MessageController>(context, listen: false);
-      final keys = await messageController.getConversationKey(widget.address);
-      if (keys == null || keys.ownPublicKey.isEmpty || keys.ownPrivateKey.isEmpty) {
-        throw Exception('فشل في توليد مفاتيح التشفير');
-      }
-  
-      // تبادل المفاتيح مع الخادم
-      await _exchangeKeysWithServer(senderUUID, receiverUUID, keys, widget.address);
-  
-      // توليد زوج المفاتيح وحساب السر المشترك
-      final keyPair = DiffieHellmanHelper.generateKeyPair();
-      final myPrivateKey = keyPair.privateKey as ECPrivateKey;
-      final peerPublicKey = keyPair.publicKey as ECPublicKey;
-      final sharedSecret = DiffieHellmanHelper.computeSharedSecret(myPrivateKey, peerPublicKey);
-  
-      // تخزين المفتاح محلياً وفي الخادم
-      await dbHelper.storeKeysLocally(
-        senderUUID: senderUUID,
-        senderNUM: senderNUM,
-        receiverUUID: receiverUUID,
-        receiverNUM: lastNine,
-        sharedSecret: sharedSecret,
-      );
-      await _storeKeysToServer(senderUUID, senderNUM, receiverUUID, lastNine, sharedSecret);
-  
-      return BigInt.parse(sharedSecret.toString()); // إرجاع المفتاح المشترك
-    } else {
-      // إذا كان المفتاح موجوداً محلياً، يتم استخدامه
-      return BigInt.parse(key);
-    }
-  }
+        final messageController =
+        Provider.of<MessageController>(context, listen: false);
+        final keys = await messageController.getConversationKey(widget.address);
+        if (keys == null ||
+            keys.ownPublicKey.isEmpty ||
+            keys.ownPrivateKey.isEmpty) {
+          throw Exception('فشل في توليد مفاتيح التشفير');
+        }
 
-   /// دالة لتبادل المفاتيح مع الخادم والحصول على المفتاح العام الخاص بالجهة المستلمة
+        // تبادل المفاتيح مع الخادم
+        await _exchangeKeysWithServer(senderUUID, receiverUUID, keys, widget.address);
+
+        // توليد زوج المفاتيح وحساب السر المشترك
+        final keyPair = DiffieHellmanHelper.generateKeyPair();
+        final myPrivateKey = keyPair.privateKey as ECPrivateKey;
+        final peerPublicKey = keyPair.publicKey as ECPublicKey;
+        final sharedSecret = DiffieHellmanHelper.computeSharedSecret(myPrivateKey, peerPublicKey);
+
+        // تخزين المفتاح محلياً وفي الخادم
+        await dbHelper.storeKeysLocally(
+          senderUUID: senderUUID,
+          senderNUM: senderNUM,
+          receiverUUID: receiverUUID,
+          receiverNUM: lastNine,
+          sharedSecret: sharedSecret,
+        );
+        await _storeKeysToServer(senderUUID, senderNUM, receiverUUID, lastNine, sharedSecret);
+
+        return BigInt.parse(sharedSecret.toString());
+      } else {
+        // إذا كان المفتاح موجوداً محلياً، نقوم باستخدامه
+        return BigInt.parse(key);
+      }
+    }
+
+
+  /// دالة لتبادل المفاتيح مع الخادم والحصول على المفتاح العام الخاص بالجهة المستلمة
   Future<void> _exchangeKeysWithServer(
-    String senderUUID, // UUID الخاص بالمرسل
-    String receiverUUID, // UUID الخاص بالمستلم
-    dynamic keys, // مفاتيح المرسل (العامة والخاصة)
-    String targetPhone, // رقم الهاتف الخاص بالمستلم
-  ) async {
-    // إرسال طلب POST إلى الخادم لتبادل المفاتيح
+      String senderUUID,
+      String receiverUUID,
+      dynamic keys,
+      String targetPhone,
+      ) async {
     final response = await http.post(
-      Uri.parse('https://political-thoracic-spatula.glitch.me/api/exchange-keys'), // عنوان API
-      headers: {'Content-Type': 'application/json'}, // تحديد نوع المحتوى
+      Uri.parse('https://political-thoracic-spatula.glitch.me/api/exchange-keys'),
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'senderUUID': senderUUID, // UUID الخاص بالمرسل
-        'receiverUUID': receiverUUID, // UUID الخاص بالمستلم
-        'senderPublicKey': keys.ownPublicKey, // المفتاح العام للمرسل
-        'targetPhone': targetPhone, // رقم الهاتف الخاص بالمستلم
+        'senderUUID': senderUUID,
+        'receiverUUID': receiverUUID,
+        'senderPublicKey': keys.ownPublicKey,
+        'targetPhone': targetPhone,
       }),
-    ).timeout(const Duration(seconds: 10)); // تحديد مهلة الطلب
-  
-    // التحقق من نجاح الطلب
+    ).timeout(const Duration(seconds: 10));
+
     if (response.statusCode != 200) {
       print('فشل تبادل المفاتيح. رمز الحالة: ${response.statusCode}');
       print('رد الخادم: ${response.body}');
       throw Exception('فشل تبادل المفاتيح مع الخادم');
     }
-  
-    // فك تشفير استجابة الخادم
+
     final exchangeData = jsonDecode(response.body);
     if (exchangeData['targetPublicKey'] == null) {
       throw Exception('لم يتم استلام المفتاح العام من الخادم');
     }
   }
-  
+
   /// دالة لتخزين المفاتيح على الخادم
   Future<void> _storeKeysToServer(
-    String senderUUID, // UUID الخاص بالمرسل
-    String senderNUM, // رقم الهاتف الخاص بالمرسل
-    String receiverUUID, // UUID الخاص بالمستلم
-    String receiverNUM, // رقم الهاتف الخاص بالمستلم
-    dynamic sharedSecret, // المفتاح المشترك
-  ) async {
-    // إرسال طلب POST إلى الخادم لتخزين المفاتيح
+      String senderUUID,
+      String senderNUM,
+      String receiverUUID,
+      String receiverNUM,
+      dynamic sharedSecret,
+      ) async {
     final storeResponse = await http.post(
-      Uri.parse('https://political-thoracic-spatula.glitch.me/api/store-keys'), // عنوان API
-      headers: {'Content-Type': 'application/json'}, // تحديد نوع المحتوى
+      Uri.parse('https://political-thoracic-spatula.glitch.me/api/store-keys'),
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'senderUUID': senderUUID, // UUID الخاص بالمرسل
-        'senderNUM': senderNUM, // رقم الهاتف الخاص بالمرسل
-        'receiverUUID': receiverUUID, // UUID الخاص بالمستلم
-        'receiverNUM': receiverNUM, // رقم الهاتف الخاص بالمستلم
-        'sharedSecret': sharedSecret.toString(), // المفتاح المشترك
+        'senderUUID': senderUUID,
+        'senderNUM': senderNUM,
+        'receiverUUID': receiverUUID,
+        'receiverNUM': receiverNUM,
+        'sharedSecret': sharedSecret.toString()
       }),
-    ).timeout(const Duration(seconds: 10)); // تحديد مهلة الطلب
-  
-    // التحقق من نجاح الطلب
+    ).timeout(const Duration(seconds: 10));
+
     if (storeResponse.statusCode != 200) {
       print('فشل حفظ المفاتيح. رمز الحالة: ${storeResponse.statusCode}');
       print('رد الخادم: ${storeResponse.body}');
       throw Exception('فشل تبادل المفاتيح مع الخادم');
     }
-  
-    // فك تشفير استجابة الخادم
+
     final storeData = jsonDecode(storeResponse.body);
     if (storeData['success'] != true) {
       throw Exception('فشل في تخزين المفاتيح على الخادم');
     }
   }
-  
+
   /// دالة لتشفير الرسالة وإرسالها عبر SMS وتسجيلها
   Future<void> _processAndSendMessage(
-    String plainText, // النص الأصلي للرسالة
-    BigInt secret, // المفتاح المشترك
-    MessageController messageController, // وحدة التحكم بالرسائل
-    String address, // عنوان المحادثة (مثل رقم الهاتف)
-  ) async {
-    // تشفير الرسالة باستخدام المفتاح المشترك
+      String plainText,
+      BigInt secret,
+      MessageController messageController,
+      String address,
+      ) async {
     final encryptedMessage = DiffieHellmanHelper.encryptMessage(plainText, secret);
-  
-    // إرسال الرسالة المشفرة وتسجيلها
     await messageController.sendEncryptedMessage(encryptedMessage, plainText, address);
   }
-  
+
   /// دالة لتحديث واجهة المستخدم بإضافة الرسالة الجديدة
-  void _updateUIWithNewMessage(String address, String content) async {
-    // إنشاء كائن الرسالة الجديدة
+  void _updateUIWithNewMessage(String address, String content) async{
     Message newMessage = Message(
-      sender: address, // عنوان المرسل
-      content: content, // محتوى الرسالة
-      timestamp: DateTime.now(), // الوقت الحالي
-      isMe: true, // الإشارة إلى أن الرسالة مرسلة من المستخدم
-      isEncrypted: true, // الإشارة إلى أن الرسالة مشفرة
+      sender: address,
+      content: content,
+      timestamp: DateTime.now(),
+      isMe: true,
+      isEncrypted: true,
     );
-  
-    // تحديث واجهة المستخدم
     setState(() {
-      _messages.add(newMessage); // إضافة الرسالة إلى القائمة
-      _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // ترتيب الرسائل حسب الوقت
+      _messages.add(newMessage);
+      _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     });
+      // await _loadMessages();
   }
-  
+
   /// دالة لتحريك الـ Scroll إلى نهاية القائمة
   void _scrollToBottom() {
     WidgetsBinding.instance?.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent); // التمرير إلى الأسفل
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
     });
   }
-  
-  /// دالة لإجراء مكالمة هاتفية
+
+
   Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber); // إنشاء URI للمكالمة
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
     try {
       if (await canLaunchUrl(phoneUri)) {
-        await launchUrl(phoneUri); // فتح تطبيق الهاتف
+        await launchUrl(phoneUri);
       } else {
         throw 'تعذر فتح تطبيق الهاتف';
       }
     } catch (e) {
-      // عرض رسالة خطأ في حالة الفشل
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('خطأ في الاتصال: $e')),
       );
     }
   }
-  
-  // دالة مقارنة بين تاريخين للتحقق إذا كانا في نفس اليوم
+
+  // دالة مقارنة بين تاريخين للتحقق إذا كانتا في نفس اليوم
   bool _isSameDate(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
         date1.month == date2.month &&
-        date1.day == date2.day; // التحقق من تطابق السنة والشهر واليوم
+        date1.day == date2.day;
   }
-  
+
   // دالة تنسيق عنوان التاريخ والوقت (مثل: Today • 03:15 PM)
   String _formatDateHeader(DateTime dateTime) {
-    final now = DateTime.now(); // الوقت الحالي
+    final now = DateTime.now();
     if (_isSameDate(dateTime, now)) {
-      return "Today • ${DateFormat('hh:mm a').format(dateTime)}"; // إذا كان التاريخ اليوم
+      return "Today • ${DateFormat('hh:mm a').format(dateTime)}";
     } else if (_isSameDate(dateTime, now.subtract(Duration(days: 1)))) {
-      return "Yesterday • ${DateFormat('hh:mm a').format(dateTime)}"; // إذا كان التاريخ أمس
+      return "Yesterday • ${DateFormat('hh:mm a').format(dateTime)}";
     } else {
-      return "${DateFormat('dd MMM yyyy').format(dateTime)} • ${DateFormat('hh:mm a').format(dateTime)}"; // تنسيق التاريخ لباقي الأيام
+      return "${DateFormat('dd MMM yyyy').format(dateTime)} • ${DateFormat('hh:mm a').format(dateTime)}";
     }
   }
-  
+
   // ويدجت لبناء رأس التاريخ
   Widget _buildDateHeader(DateTime dateTime) {
     return Center(
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 8), // إضافة مسافة عمودية
+        margin: EdgeInsets.symmetric(vertical: 8),
         child: Text(
-          _formatDateHeader(dateTime), // تنسيق التاريخ
+          _formatDateHeader(dateTime),
           style: TextStyle(
-            fontSize: 13, // حجم النص
-            color: Colors.grey, // لون النص
-            fontWeight: FontWeight.bold, // جعل النص عريضاً
+            fontSize: 13,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
     );
   }
-    @override
+
+  @override
   Widget build(BuildContext context) {
-    // بناء واجهة المستخدم الرئيسية
     return Scaffold(
-      backgroundColor: GoogleMessagesColors.background, // تحديد لون الخلفية
+      backgroundColor: GoogleMessagesColors.background,
       appBar: AppBar(
-        backgroundColor: GoogleMessagesColors.appBar, // تحديد لون شريط التطبيق
-        title: _buildAppBarTitle(), // بناء عنوان شريط التطبيق
-        leading: _isSelectionMode // إذا كان وضع التحديد مفعلاً
+        backgroundColor: GoogleMessagesColors.appBar,
+        title: _buildAppBarTitle(),
+        leading: _isSelectionMode
             ? IconButton(
-                icon: Icon(Icons.close, color: GoogleMessagesColors.textDark), // زر إغلاق وضع التحديد
-                onPressed: _exitSelectionMode, // الخروج من وضع التحديد
-              )
-            : null, // إذا لم يكن وضع التحديد مفعلاً، لا يتم عرض أيقونة
-        actions: _buildAppBarActions(), // بناء أزرار شريط التطبيق
-        elevation: 1, // تحديد ارتفاع الظل لشريط التطبيق
-        iconTheme: IconThemeData(color: GoogleMessagesColors.textDark), // تحديد لون الأيقونات
+          icon: Icon(Icons.close, color: GoogleMessagesColors.textDark),
+          onPressed: _exitSelectionMode,
+        )
+            : null,
+        actions: _buildAppBarActions(),
+        elevation: 1,
+        iconTheme: IconThemeData(color: GoogleMessagesColors.textDark),
       ),
       body: Column(
         children: [
-          if (_isSearchMode && _searchResults.isNotEmpty) // إذا كان وضع البحث مفعلاً وهناك نتائج
-            _buildSearchHeader(), // بناء شريط البحث
+          if (_isSearchMode && _searchResults.isNotEmpty)
+            _buildSearchHeader(),
           Expanded(
-            child: _loadingMessages // إذا كانت الرسائل قيد التحميل
-                ? Center(child: CircularProgressIndicator()) // عرض مؤشر التحميل
+            child: _loadingMessages
+                ? Center(child: CircularProgressIndicator())
                 : ListView.builder(
-                    controller: _scrollController, // وحدة التحكم بالتمرير
-                    itemCount: _messages.length, // عدد الرسائل
-                    itemBuilder: (context, index) {
-                      final message = _messages[index]; // الرسالة الحالية
-  
-                      // التحقق مما إذا كان يجب عرض رأس التاريخ
-                      bool showHeader = false;
-                      if (index == 0) {
-                        showHeader = true; // عرض رأس التاريخ للرسالة الأولى
-                      } else {
-                        final prevMessage = _messages[index - 1]; // الرسالة السابقة
-                        if (!_isSameDate(message.timestamp, prevMessage.timestamp))
-                          showHeader = true; // عرض رأس التاريخ إذا كان التاريخ مختلفاً
-                      }
-  
-                      return Column(
-                        children: [
-                          if (showHeader) _buildDateHeader(message.timestamp), // بناء رأس التاريخ إذا لزم الأمر
-                          _buildMessageItem(index, message), // بناء عنصر الرسالة
-                        ],
-                      );
-                    },
-                  ),
+              controller: _scrollController,
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final message = _messages[index];
+
+                // التحقق مما إذا كان يجب عرض رأس التاريخ
+                bool showHeader = false;
+                if (index == 0) {
+                  showHeader = true;
+                } else {
+                  final prevMessage = _messages[index - 1];
+                  if (!_isSameDate(message.timestamp, prevMessage.timestamp))
+                    showHeader = true;
+                }
+
+                return Column(
+                  children: [
+                    if (showHeader) _buildDateHeader(message.timestamp),
+                    _buildMessageItem(index, message),
+                  ],
+                );
+              },
+            ),
           ),
-          _buildMessageInput(), // بناء حقل إدخال الرسائل
+          _buildMessageInput(),
         ],
       ),
     );
   }
-  
-  // دالة لبناء عنوان شريط التطبيق
+
   Widget _buildAppBarTitle() {
-    if (_isSelectionMode) { // إذا كان وضع التحديد مفعلاً
+    if (_isSelectionMode) {
       return Text(
-        "${_selectedMessageIndices.length} محادثات مختارة", // عرض عدد الرسائل المحددة
+        "${_selectedMessageIndices.length} محادثات مختارة",
         style: TextStyle(
-          color: GoogleMessagesColors.textDark, // لون النص
-          fontSize: 18, // حجم النص
+          color: GoogleMessagesColors.textDark,
+          fontSize: 18,
         ),
       );
     }
-    if (_isSearchMode) { // إذا كان وضع البحث مفعلاً
+    if (_isSearchMode) {
       return TextField(
-        controller: _searchController, // وحدة التحكم بحقل البحث
-        focusNode: _searchFocusNode, // وحدة التحكم بالتركيز
+        controller: _searchController,
+        focusNode: _searchFocusNode,
         decoration: InputDecoration(
-          hintText: "ابحث في المحادثة...", // نص الإرشاد
-          border: InputBorder.none, // إزالة الإطار
-          hintStyle: TextStyle(color: GoogleMessagesColors.textLight), // لون نص الإرشاد
+          hintText: "ابحث في المحادثة...",
+          border: InputBorder.none,
+          hintStyle: TextStyle(color: GoogleMessagesColors.textLight),
         ),
-        style: TextStyle(color: GoogleMessagesColors.textDark), // لون النص المدخل
-        onChanged: _performSearch, // تنفيذ البحث عند تغيير النص
+        style: TextStyle(color: GoogleMessagesColors.textDark),
+        onChanged: _performSearch,
       );
     }
     return Row(
       children: [
         CircleAvatar(
-          radius: 20, // نصف قطر الصورة
-          backgroundColor: GoogleMessagesColors.primary.withOpacity(0.1), // لون الخلفية
+          radius: 20,
+          backgroundColor: GoogleMessagesColors.primary.withOpacity(0.1),
           backgroundImage: widget.recipientImageUrl != null
-              ? NetworkImage(widget.recipientImageUrl!) // تحميل الصورة من الإنترنت إذا كانت موجودة
+              ? NetworkImage(widget.recipientImageUrl!)
               : null,
-          child: widget.recipientImageUrl == null // إذا لم تكن هناك صورة
+          child: widget.recipientImageUrl == null
               ? Text(
-                  widget.recipient.isNotEmpty
-                      ? widget.recipient[0].toUpperCase() // عرض الحرف الأول من اسم المستلم
-                      : '?', // عرض علامة استفهام إذا كان الاسم فارغاً
-                  style: TextStyle(
-                    color: GoogleMessagesColors.primary, // لون النص
-                    fontSize: 18, // حجم النص
-                  ),
-                )
+            widget.recipient.isNotEmpty
+                ? widget.recipient[0].toUpperCase()
+                : '?',
+            style: TextStyle(
+              color: GoogleMessagesColors.primary,
+              fontSize: 18,
+            ),
+          )
               : null,
         ),
-        SizedBox(width: 12), // إضافة مسافة أفقية
+        SizedBox(width: 12),
         Expanded(
           child: Row(
-            mainAxisSize: MainAxisSize.min, // تقليل حجم الصف إلى الحد الأدنى
+            mainAxisSize: MainAxisSize.min,
             children: [
               Expanded(
                 child: Text(
-                  widget.recipient, // اسم المستلم
+                  widget.recipient,
                   style: TextStyle(
-                    color: GoogleMessagesColors.textDark, // لون النص
-                    fontSize: 18, // حجم النص
-                    fontWeight: FontWeight.w500, // وزن النص
+                    color: GoogleMessagesColors.textDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                   ),
-                  overflow: TextOverflow.ellipsis, // اقتصاص النص إذا كان طويلاً
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Padding(
-                padding: EdgeInsets.only(left: 8), // إضافة مسافة يسار
+                padding: EdgeInsets.only(left: 8),
                 child: IconButton(
                   icon: Icon(
-                    Icons.call, // أيقونة الاتصال
-                    size: 24, // حجم الأيقونة
-                    color: GoogleMessagesColors.primary, // لون الأيقونة
+                    Icons.call,
+                    size: 24,
+                    color: GoogleMessagesColors.primary,
                   ),
-                  onPressed: () => _makePhoneCall(widget.address), // إجراء مكالمة عند الضغط
+                  onPressed: () => _makePhoneCall(widget.address),
                 ),
               ),
             ],
@@ -754,132 +735,127 @@ class _ChatScreenState extends State<ChatScreen> {
       ],
     );
   }
-   // دالة لبناء أزرار شريط التطبيق
+
   List<Widget>? _buildAppBarActions() {
-    if (_isSearchMode) return null; // إذا كان وضع البحث مفعلاً، لا يتم عرض أي أزرار
-  
-    if (_isSelectionMode) { // إذا كان وضع التحديد مفعلاً
+    if (_isSearchMode) return null;
+
+    if (_isSelectionMode) {
       return [
         IconButton(
-          icon: Icon(Icons.copy, color: GoogleMessagesColors.textDark), // زر نسخ الرسائل
-          onPressed: _copySelectedMessages, // استدعاء دالة نسخ الرسائل المحددة
+          icon: Icon(Icons.copy, color: GoogleMessagesColors.textDark),
+          onPressed: _copySelectedMessages,
         ),
         IconButton(
-          icon: Icon(Icons.delete, color: GoogleMessagesColors.textDark), // زر حذف الرسائل
-          onPressed: _deleteSelectedMessages, // استدعاء دالة حذف الرسائل المحددة
+          icon: Icon(Icons.delete, color: GoogleMessagesColors.textDark),
+          onPressed: _deleteSelectedMessages,
         ),
       ];
     }
-  
-    // إذا لم يكن أي وضع مفعلاً، يتم عرض زر البحث
+
     return [
       IconButton(
-        icon: Icon(Icons.search, color: GoogleMessagesColors.textDark), // زر البحث
-        onPressed: _toggleSearchMode, // استدعاء دالة تبديل وضع البحث
+        icon: Icon(Icons.search, color: GoogleMessagesColors.textDark),
+        onPressed: _toggleSearchMode,
       ),
     ];
   }
-  
-  // دالة لبناء شريط البحث
+
   Widget _buildSearchHeader() {
     return Container(
-      color: GoogleMessagesColors.appBar, // لون الخلفية
-      padding: EdgeInsets.symmetric(vertical: 8), // إضافة مسافة عمودية
+      color: GoogleMessagesColors.appBar,
+      padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, // محاذاة العناصر في المنتصف
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: Icon(Icons.arrow_upward, color: GoogleMessagesColors.primary), // زر الانتقال إلى النتيجة السابقة
-            onPressed: _jumpToPreviousResult, // استدعاء دالة الانتقال إلى النتيجة السابقة
+            icon: Icon(Icons.arrow_upward, color: GoogleMessagesColors.primary),
+            onPressed: _jumpToPreviousResult,
           ),
           Text(
-            '${_currentSearchIndex + 1} من ${_searchResults.length}', // عرض رقم النتيجة الحالية من إجمالي النتائج
+            '${_currentSearchIndex + 1} من ${_searchResults.length}',
             style: TextStyle(
-              color: GoogleMessagesColors.textDark, // لون النص
-              fontSize: 16, // حجم النص
+              color: GoogleMessagesColors.textDark,
+              fontSize: 16,
             ),
-            textDirection: ui.TextDirection.rtl, // اتجاه النص من اليمين إلى اليسار
-            textAlign: TextAlign.right, // محاذاة النص إلى اليمين
+            textDirection: ui.TextDirection.rtl,
+            textAlign: TextAlign.right,
           ),
           IconButton(
-            icon: Icon(Icons.arrow_downward, color: GoogleMessagesColors.primary), // زر الانتقال إلى النتيجة التالية
-            onPressed: _jumpToNextResult, // استدعاء دالة الانتقال إلى النتيجة التالية
+            icon: Icon(Icons.arrow_downward, color: GoogleMessagesColors.primary),
+            onPressed: _jumpToNextResult,
           ),
         ],
       ),
     );
   }
-  
-  // دالة لبناء عنصر الرسالة
+
   Widget _buildMessageItem(int index, Message message) {
-    final bool isMe = message.isMe; // التحقق إذا كانت الرسالة مرسلة من المستخدم
-    final bool isSelected = _selectedMessageIndices.contains(index); // التحقق إذا كانت الرسالة محددة
+    final bool isMe = message.isMe;
+    final bool isSelected = _selectedMessageIndices.contains(index);
     final bool isSearchResult = _searchResults.contains(index) &&
-        index == _searchResults[_currentSearchIndex]; // التحقق إذا كانت الرسالة نتيجة بحث
-  
+        index == _searchResults[_currentSearchIndex];
+
     return GestureDetector(
-      onLongPress: () => _onLongPressMessage(index), // استدعاء دالة الضغط المطول لتفعيل وضع التحديد
-      onTap: () => _onTapMessage(index), // استدعاء دالة النقر لتبديل اختيار الرسالة
+      onLongPress: () => _onLongPressMessage(index),
+      onTap: () => _onTapMessage(index),
       child: Container(
         color: isSelected
-            ? GoogleMessagesColors.accent.withOpacity(0.3) // لون الخلفية إذا كانت الرسالة محددة
+            ? GoogleMessagesColors.accent.withOpacity(0.3)
             : isSearchResult
-                ? GoogleMessagesColors.primary.withOpacity(0.1) // لون الخلفية إذا كانت نتيجة بحث
-                : Colors.transparent, // لون الخلفية الافتراضي
-        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8), // إضافة مسافة داخلية
+            ? GoogleMessagesColors.primary.withOpacity(0.1)
+            : Colors.transparent,
+        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         child: Row(
-          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start, // محاذاة الرسالة حسب المرسل
+          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
           children: [
             Flexible(
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.8, // تحديد الحد الأقصى لعرض الرسالة
+                  maxWidth: MediaQuery.of(context).size.width * 0.8,
                 ),
                 decoration: BoxDecoration(
-                  color: isMe
-                      ? GoogleMessagesColors.sentMessage // لون الرسائل المرسلة
-                      : GoogleMessagesColors.receivedMessage, // لون الرسائل المستلمة
-                  borderRadius: BorderRadius.circular(12), // زوايا دائرية
+                  color: isMe ? GoogleMessagesColors.sentMessage : GoogleMessagesColors.receivedMessage,
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black12, // لون الظل
-                      blurRadius: 2, // درجة التمويه
-                      offset: Offset(0, 1), // إزاحة الظل
+                      color: Colors.black12,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
                     )
                   ],
                 ),
                 padding: EdgeInsets.symmetric(
-                  vertical: 10, // مسافة عمودية داخل الرسالة
-                  horizontal: 14, // مسافة أفقية داخل الرسالة
+                  vertical: 10,
+                  horizontal: 14,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // محاذاة النصوص إلى اليسار
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      message.content, // محتوى الرسالة
+                      message.content,
                       style: TextStyle(
-                        color: GoogleMessagesColors.textDark, // لون النص
-                        fontSize: 16, // حجم النص
+                        color: GoogleMessagesColors.textDark,
+                        fontSize: 16,
                       ),
                     ),
-                    SizedBox(height: 4), // إضافة مسافة بين النصوص
+                    SizedBox(height: 4),
                     Row(
-                      mainAxisSize: MainAxisSize.min, // تقليل حجم الصف إلى الحد الأدنى
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          DateFormat('hh:mm a').format(message.timestamp), // تنسيق وعرض وقت الرسالة
+                          DateFormat('hh:mm a').format(message.timestamp),
                           style: TextStyle(
-                            color: GoogleMessagesColors.timeStamp, // لون النص
-                            fontSize: 12, // حجم النص
+                            color: GoogleMessagesColors.timeStamp,
+                            fontSize: 12,
                           ),
                         ),
-                        if (isMe && message.isEncrypted) // إذا كانت الرسالة مرسلة ومشفرة
+                        if (isMe && message.isEncrypted)
                           Padding(
-                            padding: EdgeInsets.only(left: 4), // إضافة مسافة يسار
+                            padding: EdgeInsets.only(left: 4),
                             child: Icon(
-                              Icons.lock_outline, // أيقونة القفل
-                              size: 12, // حجم الأيقونة
-                              color: GoogleMessagesColors.timeStamp, // لون الأيقونة
+                              Icons.lock_outline,
+                              size: 12,
+                              color: GoogleMessagesColors.timeStamp,
                             ),
                           ),
                       ],
@@ -893,18 +869,18 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-   // دالة لبناء واجهة إدخال الرسائل
+
   Widget _buildMessageInput() {
     return Container(
-      margin: EdgeInsets.all(8), // إضافة مسافة حول حقل الإدخال
+      margin: EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white, // لون خلفية حقل الإدخال
-        borderRadius: BorderRadius.circular(24), // زوايا دائرية للحقل
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12, // لون الظل
-            blurRadius: 4, // درجة التمويه للظل
-            offset: Offset(0, 2), // إزاحة الظل
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -912,27 +888,28 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16), // إضافة مسافة أفقية داخل الحقل
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
-                controller: _messageController, // وحدة التحكم بحقل النص
+                controller: _messageController,
                 decoration: InputDecoration(
-                  hintText: "اكتب رسالة...", // نص الإرشاد داخل الحقل
-                  border: InputBorder.none, // إزالة الإطار الافتراضي للحقل
+                  hintText: "اكتب رسالة...",
+                  border: InputBorder.none,
                   hintStyle: TextStyle(
-                    color: GoogleMessagesColors.textLight, // لون نص الإرشاد
+                    color: GoogleMessagesColors.textLight,
                   ),
                 ),
                 style: TextStyle(
-                  color: GoogleMessagesColors.textDark, // لون النص المدخل
+                  color: GoogleMessagesColors.textDark,
                 ),
               ),
             ),
           ),
           IconButton(
-            icon: Icon(Icons.send, color: GoogleMessagesColors.primary), // أيقونة الإرسال
-            onPressed: _sendMessage, // استدعاء دالة إرسال الرسالة عند الضغط
+            icon: Icon(Icons.send, color: GoogleMessagesColors.primary),
+            onPressed: _sendMessage,
           ),
         ],
       ),
     );
   }
+}

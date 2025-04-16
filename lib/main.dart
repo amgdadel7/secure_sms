@@ -1,45 +1,37 @@
-// استيراد المكتبات اللازمة
-import 'package:flutter/material.dart'; // لإنشاء واجهات المستخدم
-import 'package:permission_handler/permission_handler.dart'; // مكتبة لإدارة الأذونات
-import 'package:provider/provider.dart'; // مكتبة لإدارة الحالة باستخدام Provider
-import 'controllers/first_launch_manager.dart'; // وحدة التحكم بالإطلاق الأول
-import 'controllers/message_controller.dart'; // وحدة التحكم بالرسائل
-import 'views/conversations_screen.dart'; // شاشة المحادثات
-import 'views/registration_screen.dart'; // شاشة التسجيل
-
-// دالة لفتح إعدادات التطبيق لتمكين الأذونات
+import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import 'controllers/first_launch_manager.dart';
+import 'controllers/message_controller.dart';
+import 'views/conversations_screen.dart';
+import 'views/registration_screen.dart';
 void _showPermissionDialog() async {
-  await openAppSettings(); // فتح إعدادات التطبيق
+  await openAppSettings();
 }
-
-// دالة لطلب الأذونات المطلوبة
 Future<bool> _requestPermissions() async {
   final permissions = [
-    Permission.contacts, // إذن الوصول إلى جهات الاتصال
-    Permission.location, // إذن الوصول إلى الموقع
-    Permission.phone, // إذن الوصول إلى الهاتف
-    Permission.sms, // إذن الوصول إلى الرسائل النصية
+    Permission.contacts,
+    Permission.location,
+    Permission.phone,
+    Permission.sms,
   ];
 
-  final results = await permissions.request(); // طلب الأذونات
+  final results = await permissions.request();
 
-  // التحقق من أن جميع الأذونات قد تم منحها
   return results.values.every((status) => status.isGranted);
 }
-
-// شاشة لعرض رسالة تطلب من المستخدم منح الأذونات
 class PermissionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // محاذاة العناصر في المنتصف
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('الرجاء منح الأذونات المطلوبة'), // رسالة للمستخدم
+            Text('الرجاء منح الأذونات المطلوبة'),
             ElevatedButton(
-              onPressed: () => openAppSettings(), // فتح إعدادات التطبيق عند الضغط
-              child: Text('فتح الإعدادات'), // نص الزر
+              onPressed: () => openAppSettings(),
+              child: Text('فتح الإعدادات'),
             ),
           ],
         ),
@@ -47,46 +39,42 @@ class PermissionScreen extends StatelessWidget {
     );
   }
 }
-
-// الدالة الرئيسية للتطبيق
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // التأكد من تهيئة التطبيق قبل تشغيله
+  WidgetsFlutterBinding.ensureInitialized();
 
-  final permissionsGranted = await _requestPermissions(); // طلب الأذونات
+  final permissionsGranted = await _requestPermissions();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => FirstLaunchManager()), // توفير وحدة التحكم بالإطلاق الأول
-        ChangeNotifierProvider(create: (_) => MessageController()..initDatabases()), // توفير وحدة التحكم بالرسائل وتهيئة قواعد البيانات
+        ChangeNotifierProvider(create: (_) => FirstLaunchManager()),
+        ChangeNotifierProvider(create: (_) => MessageController()..initDatabases()),
       ],
-      child: MyApp(permissionsGranted: permissionsGranted), // تمرير حالة الأذونات إلى التطبيق
+      child: MyApp(permissionsGranted: permissionsGranted),
     ),
   );
 }
 
-// تعريف التطبيق الرئيسي
 class MyApp extends StatelessWidget {
-  final bool permissionsGranted; // حالة الأذونات
+  final bool permissionsGranted;
 
   const MyApp({Key? key, required this.permissionsGranted}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: permissionsGranted // التحقق من حالة الأذونات
-          ? _buildMainScreen(context) // إذا كانت الأذونات ممنوحة، الانتقال إلى الشاشة الرئيسية
-          : PermissionScreen(), // إذا لم تكن الأذونات ممنوحة، عرض شاشة طلب الأذونات
+      home: permissionsGranted
+          ? _buildMainScreen(context)
+          : PermissionScreen(),
     );
   }
 
-  // بناء الشاشة الرئيسية للتطبيق
   Widget _buildMainScreen(BuildContext context) {
-    return Consumer<FirstLaunchManager>( // مراقبة حالة الإطلاق الأول
+    return Consumer<FirstLaunchManager>(
       builder: (context, launchManager, child) {
-        return launchManager.isFirstLaunch // التحقق إذا كان الإطلاق الأول
-            ? RegistrationScreen() // إذا كان الإطلاق الأول، عرض شاشة التسجيل
-            : ConversationsScreen(); // إذا لم يكن الإطلاق الأول، عرض شاشة المحادثات
+        return launchManager.isFirstLaunch
+            ? RegistrationScreen()
+            : ConversationsScreen();
       },
     );
   }

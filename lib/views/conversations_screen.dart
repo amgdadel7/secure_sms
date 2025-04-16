@@ -1,23 +1,20 @@
-// استيراد المكتبات اللازمة
-import 'dart:async'; // للتعامل مع العمليات غير المتزامنة
-import 'package:flutter/material.dart'; // لإنشاء واجهات المستخدم
-import 'package:intl/intl.dart'; // لتنسيق التاريخ والوقت
-import 'package:provider/provider.dart'; // لإدارة الحالة باستخدام Provider
-import 'package:shimmer/shimmer.dart'; // لإنشاء تأثير الوميض (Shimmer)
-import 'package:telephony/telephony.dart'; // للتعامل مع الرسائل النصية SMS
-import 'package:fast_contacts/fast_contacts.dart'; // للوصول إلى جهات الاتصال
-import 'package:permission_handler/permission_handler.dart'; // لإدارة الأذونات
-import 'package:badges/badges.dart' as badges; // لإضافة شارات (Badges)
-import '../controllers/message_controller.dart'; // وحدة التحكم بالرسائل
-import 'chat_screen.dart'; // شاشة المحادثة
-import 'new_message_screen.dart'; // شاشة الرسائل الجديدة
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:telephony/telephony.dart';
+import 'package:fast_contacts/fast_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:badges/badges.dart' as badges;
+import '../controllers/message_controller.dart';
+import 'chat_screen.dart';
+import 'new_message_screen.dart';
 
-// دالة تُستدعى عند استقبال رسالة في الخلفية
 onBackgroundMessage(SmsMessage message) {
-  debugPrint("onBackgroundMessage called"); // طباعة رسالة عند استقبال رسالة في الخلفية
+  debugPrint("onBackgroundMessage called");
 }
 
-// تعريف واجهة شاشة المحادثات
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({Key? key}) : super(key: key);
 
@@ -25,144 +22,137 @@ class ConversationsScreen extends StatefulWidget {
   _ConversationsScreenState createState() => _ConversationsScreenState();
 }
 
-// تعريف حالة شاشة المحادثات
 class _ConversationsScreenState extends State<ConversationsScreen>
     with WidgetsBindingObserver {
-  late Future<List<Contact>> _contactsFuture; // قائمة جهات الاتصال المستقبلية
-  final Telephony _telephony = Telephony.instance; // تهيئة مكتبة الرسائل النصية
-  Map<String, List<SmsMessage>> _conversations = {}; // قائمة المحادثات
-  Map<String, int> _unreadCounts = {}; // عدد الرسائل غير المقروءة لكل محادثة
-  String _message = ""; // الرسالة الحالية
+  late Future<List<Contact>> _contactsFuture;
+  final Telephony _telephony = Telephony.instance;
+  Map<String, List<SmsMessage>> _conversations = {};
+  Map<String, int> _unreadCounts = {};
+  String _message = "";
 
   // متغيرات البحث
-  bool _isSearching = false; // حالة البحث
-  String _searchQuery = ""; // نص البحث الحالي
+  bool _isSearching = false;
+  String _searchQuery = "";
 
-  // مراقبة حالة التطبيق (Foreground/Background)
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadConversations(); // إعادة تحميل المحادثات عند العودة إلى التطبيق
+      _loadConversations();
     }
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance?.addObserver(this); // إضافة مراقب لحالة التطبيق
-    _requestSmsPermission(); // طلب إذن الرسائل النصية
-    _contactsFuture = FastContacts.getAllContacts(); // تحميل جهات الاتصال
-    _loadConversations(); // تحميل المحادثات
-    initPlatformState(); // تهيئة حالة المنصة
+    WidgetsBinding.instance?.addObserver(this);
+    _requestSmsPermission();
+    _contactsFuture = FastContacts.getAllContacts();
+    _loadConversations();
+    initPlatformState();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance?.removeObserver(this); // إزالة مراقب حالة التطبيق
+    WidgetsBinding.instance?.removeObserver(this);
     super.dispose();
   }
 
-  // دالة تُستدعى عند استقبال رسالة جديدة
   onMessage(SmsMessage message) async {
     setState(() {
-      _message = message.body ?? "Error reading message body."; // حفظ محتوى الرسالة
+      _message = message.body ?? "Error reading message body.";
       print("🚀 تم استلام رسالة واردة: $_message");
     });
-    final String address = message.address ?? 'Unknown'; // عنوان المرسل
-    final String normalizedAddress = _normalizePhoneNumber(address); // تطبيع العنوان
+    final String address = message.address ?? 'Unknown';
+    final String normalizedAddress = _normalizePhoneNumber(address);
     setState(() {
-      _conversations.putIfAbsent(normalizedAddress, () => []); // إضافة المحادثة إذا لم تكن موجودة
-      _conversations[normalizedAddress]!.add(message); // إضافة الرسالة إلى المحادثة
+      _conversations.putIfAbsent(normalizedAddress, () => []);
+      _conversations[normalizedAddress]!.add(message);
       _unreadCounts[normalizedAddress] =
-          (_unreadCounts[normalizedAddress] ?? 0) + 1; // تحديث عدد الرسائل غير المقروءة
+          (_unreadCounts[normalizedAddress] ?? 0) + 1;
     });
-    await _loadConversations(); // إعادة تحميل المحادثات
+    await _loadConversations();
   }
 
-  // تهيئة حالة المنصة وطلب الأذونات
   Future<void> initPlatformState() async {
-    bool? result = await _telephony.requestPhoneAndSmsPermissions; // طلب أذونات الرسائل النصية
+    bool? result = await _telephony.requestPhoneAndSmsPermissions;
     if (result ?? false) {
       _telephony.listenIncomingSms(
-        onNewMessage: onMessage, // استدعاء دالة عند استقبال رسالة جديدة
-        onBackgroundMessage: onBackgroundMessage, // استدعاء دالة عند استقبال رسالة في الخلفية
-        listenInBackground: true, // تمكين الاستماع في الخلفية
+        onNewMessage: onMessage,
+        onBackgroundMessage: onBackgroundMessage,
+        listenInBackground: true,
       );
-      await _loadConversations(); // تحميل المحادثات
+      await _loadConversations();
     } else {
-      openAppSettings(); // فتح إعدادات التطبيق إذا لم تُمنح الأذونات
+      openAppSettings();
     }
   }
-
-  // طلب إذن الرسائل النصية
   Future<void> _requestSmsPermission() async {
-    await Permission.sms.request(); // طلب إذن الرسائل النصية
+    await Permission.sms.request();
   }
 
-  // تحميل المحادثات
   Future<void> _loadConversations() async {
     final messageController =
-        Provider.of<MessageController>(context, listen: false); // الحصول على وحدة التحكم بالرسائل
+    Provider.of<MessageController>(context, listen: false);
     final conversations =
-        await messageController.getConversations(forceRefresh: true); // جلب المحادثات
+    await messageController.getConversations(forceRefresh: true);
     // دمج المحادثات القديمة مع الجديدة
     final mergedConversations = {..._conversations, ...conversations};
     setState(() {
-      _conversations = mergedConversations; // تحديث المحادثات
-      _unreadCounts = {}; // إعادة تعيين عدد الرسائل غير المقروءة
+      _conversations = mergedConversations;
+      _unreadCounts = {};
       mergedConversations.forEach((address, messages) {
         final normalizedAddress =
-            messageController.normalizePhoneNumber(address); // تطبيع العنوان
-        final unread = messages.where((msg) => !(msg.read ?? true)).length; // حساب الرسائل غير المقروءة
+        messageController.normalizePhoneNumber(address);
+        final unread = messages.where((msg) => !(msg.read ?? true)).length;
         if (unread > 0) {
-          _unreadCounts[normalizedAddress] = unread; // تحديث عدد الرسائل غير المقروءة
+          _unreadCounts[normalizedAddress] = unread;
         }
       });
     });
   }
 
-  // دالة لتطبيع أرقام الهاتف
+  // دالة معالجة أرقام الهاتف
   String _normalizePhoneNumber(String phoneNumber) {
-    String normalized = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), ''); // إزالة الأحرف غير الرقمية
+    String normalized = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
 
     // معالجة الأرقام الدولية
     if (normalized.startsWith('+')) {
-      return normalized.substring(normalized.length - 9); // الاحتفاظ بآخر 9 أرقام
+      return normalized.substring(normalized.length - 9);
     }
 
     if (normalized.length >= 9) {
-      return normalized.substring(normalized.length - 9); // الاحتفاظ بآخر 9 أرقام
+      return normalized.substring(normalized.length - 9);
     }
     print("Input: $phoneNumber, Output: ${normalized}");
     return normalized;
   }
 
-  // التحقق إذا كان النص يحتوي على أحرف
   bool _containsLetters(String text) {
-    return RegExp(r'[a-zA-Z]').hasMatch(text); // التحقق من وجود أحرف
+    return RegExp(r'[a-zA-Z]').hasMatch(text);
   }
 
-  // الحصول على اسم جهة الاتصال بناءً على العنوان
   String getContactName(String address, List<Contact> contacts) {
+    // إذا كان العنوان يحتوي على أحرف غير رقمية، عرضه مباشرة
     if (_containsLetters(address)) {
       print("Jaib$address");
-      return address; // إذا كان العنوان يحتوي على أحرف، عرضه كما هو
+      return address;
     }
 
-    final normalizedAddress = _normalizePhoneNumber(address); // تطبيع العنوان
+    final normalizedAddress = _normalizePhoneNumber(address);
 
+    // إذا كان الرقم قصير جدًا (مثل أرقام الخدمة) عرضه كما هو
     if (normalizedAddress.length <= 7) {
-      return address; // إذا كان الرقم قصير جدًا، عرضه كما هو
+      return address;
     }
 
     // البحث في جهات الاتصال
     for (var contact in contacts) {
       for (var phone in contact.phones) {
-        String normalizedContact = _normalizePhoneNumber(phone.number); // تطبيع رقم الهاتف
+        String normalizedContact = _normalizePhoneNumber(phone.number);
         if (normalizedContact == normalizedAddress) {
           return contact.displayName.isNotEmpty
-              ? contact.displayName // عرض اسم جهة الاتصال إذا كان موجودًا
-              : address; // عرض العنوان إذا لم يكن هناك اسم
+              ? contact.displayName
+              : address;
         }
       }
     }
@@ -170,502 +160,533 @@ class _ConversationsScreenState extends State<ConversationsScreen>
     return address; // إرجاع العنوان الأصلي إذا لم يُعثر على تطابق
   }
 
-  // تنسيق التاريخ حسب الشروط المطلوبة
+  // دالة تنسيق التاريخ حسب الشروط المطلوبة
   String _formatDate(int timestamp) {
-    final now = DateTime.now(); // الوقت الحالي
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp); // تحويل الطابع الزمني إلى تاريخ
+    final now = DateTime.now();
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
     if (date.year == now.year && date.month == now.month) {
-      return DateFormat('h:mm a').format(date); // تنسيق الوقت إذا كان في نفس الشهر
+      return DateFormat('h:mm a').format(date);
     } else if (date.year == now.year) {
-      return DateFormat('MMM d').format(date); // تنسيق الشهر واليوم إذا كان في نفس السنة
+      return DateFormat('MMM d').format(date);
     } else {
-      return DateFormat('M/d/yy').format(date); // تنسيق التاريخ الكامل إذا كان في سنة مختلفة
+      return DateFormat('M/d/yy').format(date);
     }
   }
 
-  // الحصول على لون بناءً على الحرف الأول
   Color _getColorFromChar(String char) {
-    final code = char.codeUnitAt(0); // الحصول على الكود الرقمي للحرف
-    return Colors.primaries[code % Colors.primaries.length]; // اختيار لون بناءً على الكود
+    final code = char.codeUnitAt(0);
+    return Colors.primaries[code % Colors.primaries.length];
   }
 
-  // تحديث استعلام البحث
+  // دالة تحديث استعلام البحث
   void _updateSearchQuery(String query) {
     setState(() {
-      _searchQuery = query; // تحديث نص البحث
+      _searchQuery = query;
     });
   }
 
-  // تصفية المحادثات بناءً على البحث
+  // تصفية المحادثات بالبحث (تحقق في اسم جهة الاتصال أو نص الرسالة)
   List<String> _filterConversations(List<Contact> contacts) {
-    if (_searchQuery.isEmpty) return _conversations.keys.toList(); // إذا كان البحث فارغًا، عرض جميع المحادثات
+    if (_searchQuery.isEmpty) return _conversations.keys.toList();
     List<String> results = [];
     _conversations.forEach((key, messages) {
-      final name = getContactName(key, contacts); // الحصول على اسم جهة الاتصال
+      final name = getContactName(key, contacts);
       if (name.toLowerCase().contains(_searchQuery.toLowerCase())) {
-        results.add(key); // إضافة المحادثة إذا تطابق الاسم مع البحث
+        results.add(key);
       } else {
         bool found = messages.any((msg) =>
-            (msg.body != null &&
-                msg.body!.toLowerCase().contains(_searchQuery.toLowerCase()))); // التحقق من تطابق نص الرسالة
-        if (found) results.add(key); // إضافة المحادثة إذا تطابق النص مع البحث
+        (msg.body != null &&
+            msg.body!.toLowerCase().contains(_searchQuery.toLowerCase())));
+        if (found) results.add(key);
       }
     });
     return results;
   }
 
-  // تصفية جهات الاتصال بناءً على البحث
+  // تصفية جهات الاتصال بالبحث
   List<Contact> _filterContacts(List<Contact> contacts) {
-    if (_searchQuery.isEmpty) return contacts; // إذا كان البحث فارغًا، عرض جميع جهات الاتصال
+    if (_searchQuery.isEmpty) return contacts;
     return contacts
         .where((contact) => contact.displayName
-            .toLowerCase()
-            .contains(_searchQuery.toLowerCase())) // التحقق من تطابق الاسم مع البحث
+        .toLowerCase()
+        .contains(_searchQuery.toLowerCase()))
         .toList();
   }
 
-  // تمييز النص الذي يتطابق مع استعلام البحث
+  // دالة تمييز (Highlight) النص الذي يتطابق مع استعلام البحث باللون الأصفر
   Widget _buildHighlightedText(String text, String query) {
-    if (query.isEmpty) return Text(text, style: TextStyle(color: Colors.grey[600])); // إذا كان البحث فارغًا، عرض النص كما هو
+    if (query.isEmpty) return Text(text, style: TextStyle(color: Colors.grey[600]));
     List<TextSpan> spans = [];
     String lowerText = text.toLowerCase();
     String lowerQuery = query.toLowerCase();
     int start = 0;
     while (true) {
-      int index = lowerText.indexOf(lowerQuery, start); // البحث عن النص المطابق
+      int index = lowerText.indexOf(lowerQuery, start);
       if (index < 0) {
         spans.add(TextSpan(
             text: text.substring(start),
-            style: TextStyle(color: Colors.grey[600]))); // إضافة النص المتبقي
+            style: TextStyle(color: Colors.grey[600])));
         break;
       }
       if (index > start) {
         spans.add(TextSpan(
             text: text.substring(start, index),
-            style: TextStyle(color: Colors.grey[600]))); // إضافة النص قبل المطابقة
+            style: TextStyle(color: Colors.grey[600])));
       }
       spans.add(TextSpan(
           text: text.substring(index, index + query.length),
           style: const TextStyle(
-              backgroundColor: Colors.yellow, color: Colors.black))); // تمييز النص المطابق
+              backgroundColor: Colors.yellow, color: Colors.black)));
       start = index + query.length;
     }
-    return RichText(text: TextSpan(children: spans, style: const TextStyle(fontSize: 14))); // عرض النص المميز
+    return RichText(text: TextSpan(children: spans, style: const TextStyle(fontSize: 14)));
   }
 
-  // بناء شريط التطبيق مع وضع البحث
+  // بناء شريط التطبيق المُعدل ليشمل وضع البحث
   PreferredSizeWidget _buildAppBar() {
-    if (_isSearching) { // إذا كان وضع البحث مفعلاً
+    if (_isSearching) {
       return AppBar(
-        backgroundColor: Colors.white, // لون الخلفية
-        foregroundColor: Colors.black, // لون النص
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back), // زر الرجوع
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             setState(() {
-              _isSearching = false; // إلغاء وضع البحث
-              _searchQuery = ""; // إعادة تعيين نص البحث
+              _isSearching = false;
+              _searchQuery = "";
             });
           },
         ),
         title: TextField(
-          autofocus: true, // تفعيل التركيز تلقائيًا
+          autofocus: true,
           decoration: const InputDecoration(
-              hintText: "Search...", border: InputBorder.none), // نص الإرشاد
-          onChanged: _updateSearchQuery, // تحديث نص البحث عند تغييره
+              hintText: "Search...", border: InputBorder.none),
+          onChanged: _updateSearchQuery,
         ),
       );
-    } else { // إذا لم يكن وضع البحث مفعلاً
+    } else {
       return AppBar(
-        backgroundColor: Colors.white, // لون الخلفية
-        elevation: 0, // إزالة الظل
-        title: const Text("Messages"), // عنوان الشريط
-        foregroundColor: Colors.black, // لون النص
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text("Messages"),
+        foregroundColor: Colors.black,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search), // زر البحث
+            icon: const Icon(Icons.search),
             onPressed: () {
               setState(() {
-                _isSearching = true; // تفعيل وضع البحث
+                _isSearching = true;
               });
             },
           ),
           IconButton(
-              icon: const Icon(Icons.more_vert), onPressed: () {}), // زر الخيارات
+              icon: const Icon(Icons.more_vert), onPressed: () {}),
         ],
       );
     }
   }
 
-  // بناء واجهة الوميض (Shimmer) أثناء التحميل
   Widget buildShimmerScaffold() {
-    int itemCount = _conversations.isNotEmpty ? _conversations.keys.length : 11; // عدد العناصر
+    int itemCount = _conversations.isNotEmpty ? _conversations.keys.length : 11;
     return Scaffold(
-      backgroundColor: Colors.white, // لون الخلفية
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, // لون الخلفية
-        elevation: 0, // إزالة الظل
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Shimmer.fromColors(
-          baseColor: Colors.grey.shade300, // اللون الأساسي للوميض
-          highlightColor: Colors.grey.shade100, // لون التمييز
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
           child: Container(
-            width: 150, // عرض العنصر
-            height: 20, // ارتفاع العنصر
-            color: Colors.white, // لون العنصر
+            width: 150,
+            height: 20,
+            color: Colors.white,
           ),
         ),
       ),
-      // بناء واجهة المستخدم باستخدام ListView.builder
-body: ListView.builder(
-  itemCount: itemCount, // عدد العناصر في القائمة
-  itemBuilder: (context, index) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // إضافة مسافة حول كل عنصر
-      child: Shimmer.fromColors(
-        baseColor: Colors.grey.shade300, // اللون الأساسي لتأثير الوميض
-        highlightColor: Colors.grey.shade100, // لون التمييز لتأثير الوميض
-        child: Row(
-          children: [
-            Container(
-              width: 48, // عرض الصورة الرمزية
-              height: 48, // ارتفاع الصورة الرمزية
-              decoration: const BoxDecoration(
-                color: Colors.white, // لون الخلفية
-                shape: BoxShape.circle, // شكل دائري
-              ),
-            ),
-            const SizedBox(width: 16), // مسافة أفقية بين الصورة والنص
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // محاذاة النص إلى اليسار
+      body: ListView.builder(
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+              child: Row(
                 children: [
                   Container(
-                    width: double.infinity, // عرض النص بالكامل
-                    height: 12, // ارتفاع النص
-                    color: Colors.white, // لون الخلفية
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(height: 8), // مسافة عمودية بين النصوص
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          height: 12,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          height: 12,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
                   Container(
-                    width: double.infinity, // عرض النص بالكامل
-                    height: 12, // ارتفاع النص
-                    color: Colors.white, // لون الخلفية
-                  ),
+                    width: 40,
+                    height: 12,
+                    color: Colors.white,
+                  )
                 ],
               ),
             ),
-            const SizedBox(width: 16), // مسافة أفقية بين النصوص والعنصر الأخير
-            Container(
-              width: 40, // عرض العنصر الأخير
-              height: 12, // ارتفاع العنصر الأخير
-              color: Colors.white, // لون الخلفية
-            )
-          ],
+          );
+        },
+      ),
+      floatingActionButton: Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: FloatingActionButton.extended(
+          onPressed: () {},
+          backgroundColor: Colors.lightBlue[100],
+          icon: const Icon(Icons.message_outlined, color: Colors.blue),
+          label: const Text("Start chat",
+              style: TextStyle(color: Colors.blue)),
         ),
       ),
     );
-  },
-),
+  }
 
-// زر عائم مع تأثير الوميض
-floatingActionButton: Shimmer.fromColors(
-  baseColor: Colors.grey.shade300, // اللون الأساسي لتأثير الوميض
-  highlightColor: Colors.grey.shade100, // لون التمييز لتأثير الوميض
-  child: FloatingActionButton.extended(
-    onPressed: () {}, // إجراء عند الضغط على الزر
-    backgroundColor: Colors.lightBlue[100], // لون الخلفية
-    icon: const Icon(Icons.message_outlined, color: Colors.blue), // أيقونة الزر
-    label: const Text("Start chat", style: TextStyle(color: Colors.blue)), // نص الزر
-  ),
-),
-
-// بناء واجهة المستخدم الرئيسية باستخدام FutureBuilder
-@override
-Widget build(BuildContext context) {
-  return FutureBuilder<List<Contact>>(
-    future: _contactsFuture, // جلب جهات الاتصال
-    builder: (context, contactsSnapshot) {
-      if (contactsSnapshot.connectionState == ConnectionState.waiting) {
-        return buildShimmerScaffold(); // عرض واجهة الوميض أثناء التحميل
-      } else if (contactsSnapshot.hasError) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text("Messages"), // عنوان الشريط العلوي
-            backgroundColor: Colors.white, // لون الخلفية
-            foregroundColor: Colors.black, // لون النص
-          ),
-          body: Center(child: Text("Error: ${contactsSnapshot.error}")), // عرض رسالة الخطأ
-        );
-      } else if (!contactsSnapshot.hasData || contactsSnapshot.data!.isEmpty) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text("Messages"), // عنوان الشريط العلوي
-            backgroundColor: Colors.white, // لون الخلفية
-            foregroundColor: Colors.black, // لون النص
-          ),
-          body: const Center(child: Text("No contacts available")), // عرض رسالة عدم وجود جهات اتصال
-        );
-      } else {
-        final contacts = contactsSnapshot.data!; // جهات الاتصال المحملة
-
-        // إذا كان المستخدم في وضع البحث
-        if (_isSearching) {
-          final filteredConversations = _filterConversations(contacts); // تصفية المحادثات
-          final filteredContacts = _filterContacts(contacts); // تصفية جهات الاتصال
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Contact>>(
+      future: _contactsFuture,
+      builder: (context, contactsSnapshot) {
+        if (contactsSnapshot.connectionState == ConnectionState.waiting) {
+          return buildShimmerScaffold();
+        } else if (contactsSnapshot.hasError) {
           return Scaffold(
-            backgroundColor: Colors.white, // لون الخلفية
-            appBar: _buildAppBar(), // بناء شريط التطبيق
-            body: ListView(
-              children: [
-                if (filteredConversations.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // مسافة حول النص
-                    child: Text(
-                      "Conversations", // عنوان قسم المحادثات
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // تنسيق النص
+            appBar: AppBar(
+              title: const Text("Messages"),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+            ),
+            body: Center(child: Text("Error: ${contactsSnapshot.error}")),
+          );
+        } else if (!contactsSnapshot.hasData ||
+            contactsSnapshot.data!.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("Messages"),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+            ),
+            body: const Center(child: Text("No contacts available")),
+          );
+        } else {
+          final contacts = contactsSnapshot.data!;
+          // إذا كان المستخدم في وضع البحث
+          if (_isSearching) {
+            final filteredConversations = _filterConversations(contacts);
+            final filteredContacts = _filterContacts(contacts);
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: _buildAppBar(),
+              body: ListView(
+                children: [
+                  if (filteredConversations.isNotEmpty)
+                    const Padding(
+                      padding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        "Conversations",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
-                ...filteredConversations.map((address) {
-                  final messages = _conversations[address]!; // جلب الرسائل للمحادثة
+                  ...filteredConversations.map((address) {
+                    final messages = _conversations[address]!;
+                    final lastMessage = messages.reduce(
+                            (a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b);
+                    final name = getContactName(address, contacts);
+                    final char = name.isNotEmpty ? name[0] : "?";
+                    final color = _getColorFromChar(char);
+                    final unreadCount = _unreadCounts[address] ?? 0;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: color,
+                        child: Text(
+                          char,
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: _buildHighlightedText(
+                          lastMessage.body ?? "", _searchQuery),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (lastMessage.date != null)
+                            Text(
+                              _formatDate(lastMessage.date!),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          if (unreadCount > 0)
+                            badges.Badge(
+                              badgeContent: Text(
+                                '$unreadCount',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 10),
+                              ),
+                              badgeColor: Colors.blueAccent,
+                              padding: const EdgeInsets.all(6),
+                            ),
+                        ],
+                      ),
+                      onTap: () {
+                        final messageController = Provider.of<MessageController>(context, listen: false);
+                        final normalizedAddress = messageController.normalizePhoneNumber(address);
+                        setState(() {
+                          _unreadCounts[normalizedAddress] = 0;
+                        });
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              address: address,
+                              recipient: name,
+                              recipientImageUrl: null,
+                              searchQuery: _searchQuery, // تمرير استعلام البحث الحالي
+                            ),
+                          ),
+                        ).then((_) => _loadConversations());
+                      },
+                    );
+                  }).toList(),
+                  if (filteredContacts.isNotEmpty)
+                    const Padding(
+                      padding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        "Contacts",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ...filteredContacts.map((contact) {
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.grey.shade400,
+                        child: Text(
+                          contact.displayName.isNotEmpty
+                              ? contact.displayName[0]
+                              : "?",
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        contact.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () async {
+                        final messageController = Provider.of<MessageController>(context, listen: false);
+                        String? existingAddress;
+
+                        // إذا كان اسم الجهة يحتوي على أحرف غير رقمية
+                        if (_containsLetters(contact.displayName)) {
+                          existingAddress = contact.displayName;
+                        }
+                        else {
+                          // البحث في أرقام الهاتف
+                          for (var phone in contact.phones) {
+                            String normalizedPhone = messageController.normalizePhoneNumber(phone.number);
+
+                            for (var convAddress in _conversations.keys) {
+                              String normalizedConv = messageController.normalizePhoneNumber(convAddress);
+
+                              if (normalizedConv == normalizedPhone) {
+                                existingAddress = convAddress;
+                                break;
+                              }
+                            }
+                            if (existingAddress != null) break;
+                          }
+                        }
+                        if (existingAddress != null) {
+                          final validAddress = existingAddress!;
+                          // استخدم validAddress هنا
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                address: validAddress,
+                                recipient: contact.displayName,
+                                recipientImageUrl: null,
+                              ),
+                            ),
+                          );
+                        }else {
+                          if (contact.phones.isEmpty) {
+                            // إذا كان الاسم يحتوي على أحرف بدون أرقام
+                            if (_containsLetters(contact.displayName)) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    address: contact.displayName,
+                                    recipient: contact.displayName,
+                                    recipientImageUrl: null,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("لا يوجد رقم هاتف لهذه الجهة")),
+                              );
+                            }
+                            return;
+                          }
+
+                          String phoneNumber = contact.phones.first.number;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                address: phoneNumber,
+                                recipient: contact.displayName,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+            );
+          } else {
+            final addresses = _conversations.keys.toList();
+            addresses.sort((a, b) {
+              final messagesA = _conversations[a]!;
+              final messagesB = _conversations[b]!;
+              final lastA =
+              messagesA.reduce((a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b);
+              final lastB =
+              messagesB.reduce((a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b);
+              return (lastB.date ?? 0).compareTo(lastA.date ?? 0);
+            });
+            return Scaffold(
+              backgroundColor: Colors.white,
+              appBar: _buildAppBar(),
+              body: ListView.builder(
+                itemCount: addresses.length,
+                itemBuilder: (context, index) {
+                  final address = addresses[index];
+                  final messages = _conversations[address]!;
                   final lastMessage = messages.reduce(
-                      (a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b); // الحصول على آخر رسالة
-                  final name = getContactName(address, contacts); // اسم جهة الاتصال
-                  final char = name.isNotEmpty ? name[0] : "?"; // الحرف الأول من الاسم
-                  final color = _getColorFromChar(char); // لون بناءً على الحرف
-                  final unreadCount = _unreadCounts[address] ?? 0; // عدد الرسائل غير المقروءة
+                          (a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b);
+                  final name = getContactName(address, contacts);
+                  final char = name.isNotEmpty ? name[0] : "?";
+                  final color = _getColorFromChar(char);
+                  final unreadCount = _unreadCounts[address] ?? 0;
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: color, // لون الصورة الرمزية
+                      backgroundColor: color,
                       child: Text(
-                        char, // الحرف الأول
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // تنسيق النص
+                        char,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                     title: Text(
-                      name, // اسم جهة الاتصال
-                      style: const TextStyle(fontWeight: FontWeight.w600), // تنسيق النص
+                      name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: _buildHighlightedText(lastMessage.body ?? "", _searchQuery), // النص المميز
+                    subtitle: Text(
+                      lastMessage.body ?? "",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                     trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center, // محاذاة النصوص في المنتصف
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (lastMessage.date != null)
                           Text(
-                            _formatDate(lastMessage.date!), // تنسيق التاريخ
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]), // تنسيق النص
+                            _formatDate(lastMessage.date!),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         if (unreadCount > 0)
                           badges.Badge(
                             badgeContent: Text(
-                              '$unreadCount', // عدد الرسائل غير المقروءة
-                              style: const TextStyle(color: Colors.white, fontSize: 10), // تنسيق النص
+                              '$unreadCount',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 10),
                             ),
-                            badgeColor: Colors.blueAccent, // لون الشارة
-                            padding: const EdgeInsets.all(6), // مسافة داخلية
+                            badgeColor: Colors.blueAccent,
+                            padding: const EdgeInsets.all(6),
                           ),
                       ],
                     ),
                     onTap: () {
-                      final messageController = Provider.of<MessageController>(context, listen: false); // وحدة التحكم بالرسائل
-                      final normalizedAddress = messageController.normalizePhoneNumber(address); // تطبيع العنوان
+                      final messageController =
+                      Provider.of<MessageController>(context, listen: false);
+                      final normalizedAddress =
+                      messageController.normalizePhoneNumber(address);
                       setState(() {
-                        _unreadCounts[normalizedAddress] = 0; // إعادة تعيين عدد الرسائل غير المقروءة
+                        _unreadCounts[normalizedAddress] = 0;
                       });
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ChatScreen(
-                            address: address, // عنوان المحادثة
-                            recipient: name, // اسم جهة الاتصال
-                            recipientImageUrl: null, // صورة جهة الاتصال
-                            searchQuery: _searchQuery, // تمرير استعلام البحث
+                            address: address,
+                            recipient: name,
+                            recipientImageUrl: null,
                           ),
                         ),
-                      ).then((_) => _loadConversations()); // إعادة تحميل المحادثات عند العودة
+                      ).then((_) => _loadConversations());
                     },
                   );
-                }).toList(),
-                if (filteredContacts.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // مسافة حول النص
-                    child: Text(
-                      "Contacts", // عنوان قسم جهات الاتصال
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // تنسيق النص
-                    ),
-                  ),
-                ...filteredContacts.map((contact) {
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.grey.shade400, // لون الصورة الرمزية
-                      child: Text(
-                        contact.displayName.isNotEmpty ? contact.displayName[0] : "?", // الحرف الأول من الاسم
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // تنسيق النص
-                      ),
-                    ),
-                    title: Text(
-                      contact.displayName, // اسم جهة الاتصال
-                      style: const TextStyle(fontWeight: FontWeight.w600), // تنسيق النص
-                    ),
-                    onTap: () async {
-                      final messageController = Provider.of<MessageController>(context, listen: false); // وحدة التحكم بالرسائل
-                      String? existingAddress;
-
-                      // إذا كان اسم الجهة يحتوي على أحرف غير رقمية
-                      if (_containsLetters(contact.displayName)) {
-                        existingAddress = contact.displayName;
-                      } else {
-                        // البحث في أرقام الهاتف
-                        for (var phone in contact.phones) {
-                          String normalizedPhone = messageController.normalizePhoneNumber(phone.number); // تطبيع الرقم
-                          for (var convAddress in _conversations.keys) {
-                            String normalizedConv = messageController.normalizePhoneNumber(convAddress); // تطبيع العنوان
-                            if (normalizedConv == normalizedPhone) {
-                              existingAddress = convAddress; // العثور على العنوان المطابق
-                              break;
-                            }
-                          }
-                          if (existingAddress != null) break;
-                        }
-                      }
-                      if (existingAddress != null) {
-                        final validAddress = existingAddress!;
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              address: validAddress, // عنوان المحادثة
-                              recipient: contact.displayName, // اسم جهة الاتصال
-                              recipientImageUrl: null, // صورة جهة الاتصال
-                            ),
-                          ),
-                        );
-                      } else {
-                        if (contact.phones.isEmpty) {
-                          if (_containsLetters(contact.displayName)) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatScreen(
-                                  address: contact.displayName, // عنوان المحادثة
-                                  recipient: contact.displayName, // اسم جهة الاتصال
-                                  recipientImageUrl: null, // صورة جهة الاتصال
-                                ),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("لا يوجد رقم هاتف لهذه الجهة")), // رسالة خطأ
-                            );
-                          }
-                          return;
-                        }
-
-                        String phoneNumber = contact.phones.first.number; // رقم الهاتف الأول
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              address: phoneNumber, // عنوان المحادثة
-                              recipient: contact.displayName, // اسم جهة الاتصال
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  );
-                }).toList(),
-              ],
-            ),
-          );
-        } else {
-          final addresses = _conversations.keys.toList(); // قائمة العناوين
-          addresses.sort((a, b) {
-            final messagesA = _conversations[a]!; // رسائل المحادثة A
-            final messagesB = _conversations[b]!; // رسائل المحادثة B
-            final lastA = messagesA.reduce((a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b); // آخر رسالة في A
-            final lastB = messagesB.reduce((a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b); // آخر رسالة في B
-            return (lastB.date ?? 0).compareTo(lastA.date ?? 0); // ترتيب المحادثات حسب التاريخ
-          });
-          return Scaffold(
-            backgroundColor: Colors.white, // لون الخلفية
-            appBar: _buildAppBar(), // بناء شريط التطبيق
-            body: ListView.builder(
-              itemCount: addresses.length, // عدد المحادثات
-              itemBuilder: (context, index) {
-                final address = addresses[index]; // عنوان المحادثة
-                final messages = _conversations[address]!; // رسائل المحادثة
-                final lastMessage = messages.reduce((a, b) => (a.date ?? 0) > (b.date ?? 0) ? a : b); // آخر رسالة
-                final name = getContactName(address, contacts); // اسم جهة الاتصال
-                final char = name.isNotEmpty ? name[0] : "?"; // الحرف الأول من الاسم
-                final color = _getColorFromChar(char); // لون بناءً على الحرف
-                final unreadCount = _unreadCounts[address] ?? 0; // عدد الرسائل غير المقروءة
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: color, // لون الصورة الرمزية
-                    child: Text(
-                      char, // الحرف الأول
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // تنسيق النص
-                    ),
-                  ),
-                  title: Text(
-                    name, // اسم جهة الاتصال
-                    style: const TextStyle(fontWeight: FontWeight.w600), // تنسيق النص
-                  ),
-                  subtitle: Text(
-                    lastMessage.body ?? "", // النص الأخير
-                    maxLines: 1, // عدد الأسطر
-                    overflow: TextOverflow.ellipsis, // اقتصاص النص إذا كان طويلًا
-                    style: TextStyle(color: Colors.grey[600]), // تنسيق النص
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, // محاذاة النصوص في المنتصف
-                    children: [
-                      if (lastMessage.date != null)
-                        Text(
-                          _formatDate(lastMessage.date!), // تنسيق التاريخ
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]), // تنسيق النص
-                        ),
-                      if (unreadCount > 0)
-                        badges.Badge(
-                          badgeContent: Text(
-                            '$unreadCount', // عدد الرسائل غير المقروءة
-                            style: const TextStyle(color: Colors.white, fontSize: 10), // تنسيق النص
-                          ),
-                          badgeColor: Colors.blueAccent, // لون الشارة
-                          padding: const EdgeInsets.all(6), // مسافة داخلية
-                        ),
-                    ],
-                  ),
-                  onTap: () {
-                    final messageController = Provider.of<MessageController>(context, listen: false); // وحدة التحكم بالرسائل
-                    final normalizedAddress = messageController.normalizePhoneNumber(address); // تطبيع العنوان
-                    setState(() {
-                      _unreadCounts[normalizedAddress] = 0; // إعادة تعيين عدد الرسائل غير المقروءة
-                    });
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatScreen(
-                          address: address, // عنوان المحادثة
-                          recipient: name, // اسم جهة الاتصال
-                          recipientImageUrl: null, // صورة جهة الاتصال
-                        ),
-                      ),
-                    ).then((_) => _loadConversations()); // إعادة تحميل المحادثات عند العودة
-                  },
-                );
-              },
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              backgroundColor: Colors.lightBlue[100], // لون الخلفية
-              icon: const Icon(Icons.message_outlined, color: Colors.blue), // أيقونة الزر
-              label: const Text("Start chat", style: TextStyle(color: Colors.blue)), // نص الزر
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => NewMessageScreen())); // الانتقال إلى شاشة الرسائل الجديدة
-              },
-            ),
-          );
+                },
+              ),
+              floatingActionButton: FloatingActionButton.extended(
+                backgroundColor: Colors.lightBlue[100],
+                icon: const Icon(Icons.message_outlined, color: Colors.blue),
+                label: const Text("Start chat",
+                    style: TextStyle(color: Colors.blue)),
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) =>  NewMessageScreen()));
+                },
+              ),
+            );
+          }
         }
-      }
-    },
-  );
+      },
+    );
+  }
 }

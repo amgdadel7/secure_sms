@@ -1,137 +1,116 @@
-// استيراد المكتبات اللازمة
-import 'package:flutter/src/widgets/framework.dart'; // لإنشاء واجهات المستخدم
-import 'package:provider/provider.dart'; // لإدارة الحالة باستخدام Provider
-import 'package:untitled14/services/api_service.dart'; // استيراد خدمة API للتعامل مع الخادم
+import 'package:flutter/src/widgets/framework.dart';
+import 'package:provider/provider.dart';
+import 'package:untitled14/services/api_service.dart';
 
-import '../services/device_service.dart'; // استيراد خدمة الجهاز للحصول على UUID
-import '../services/location_service.dart'; // استيراد خدمة الموقع (غير مستخدمة هنا)
-import 'package:sqflite/sqflite.dart'; // للتعامل مع قواعد البيانات SQLite
-import 'package:path/path.dart'; // لإنشاء مسارات الملفات
+import '../services/device_service.dart';
+import '../services/location_service.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
-import 'first_launch_manager.dart'; // استيراد مدير الإطلاق الأول
+import 'first_launch_manager.dart';
 
-// تعريف كلاس RegistrationController لإدارة عملية التسجيل
 class RegistrationController {
-  // تعريف كائن لخدمة قاعدة البيانات المحلية
   static final LocalDatabaseService _localDb = LocalDatabaseService();
 
-  // دالة لمعالجة عملية التسجيل
   static Future<void> handleRegistration({
-    required String countryCode, // رمز الدولة
-    required String phoneNumber, // رقم الهاتف
-    required Function(String) onError, // دالة لمعالجة الأخطاء
-    required BuildContext context, // السياق الحالي للتطبيق
+    required String countryCode,
+    required String phoneNumber,
+    required Function(String) onError, required BuildContext context,
   }) async {
     try {
-      // الحصول على UUID الخاص بالجهاز
       final uuid = await DeviceService.getUniqueId();
 
       // تشغيل العمليات بالتوازي باستخدام Future.wait
       final sendFuture = ApiService.sendDeviceInfo(
-        uuid: uuid, // إرسال UUID
-        code: countryCode, // إرسال رمز الدولة
-        phoneNum: phoneNumber, // إرسال رقم الهاتف
+        uuid: uuid,
+        code: countryCode,
+        phoneNum: phoneNumber,
       );
 
       final localDbFuture = _localDb.upsertDeviceInfo(
-        uuid: uuid, // تخزين UUID في قاعدة البيانات المحلية
-        code: countryCode, // تخزين رمز الدولة
-        phoneNum: phoneNumber, // تخزين رقم الهاتف
+        uuid: uuid,
+        code: countryCode,
+        phoneNum: phoneNumber,
       );
 
-      // انتظار نتيجة إرسال البيانات إلى الخادم
       final success = await sendFuture;
-      if (!success) throw Exception('فشل إرسال البيانات إلى الخادم'); // إذا فشل الإرسال، يتم رمي استثناء
+      if (!success) throw Exception('فشل إرسال البيانات إلى الخادم');
 
-      // انتظار تخزين البيانات في قاعدة البيانات المحلية
       await localDbFuture;
 
-      // إكمال عملية التسجيل باستخدام FirstLaunchManager
       await Provider.of<FirstLaunchManager>(context, listen: false)
           .completeRegistration();
 
     } catch (e) {
-      // معالجة الأخطاء وإرسال رسالة الخطأ إلى دالة onError
       onError('⚠️ خطأ: ${e.toString()}');
     }
   }
 }
-
-// تعريف كلاس LocalDatabaseService لإدارة قاعدة البيانات المحلية
 class LocalDatabaseService {
-  static const _databaseName = 'local_device.db'; // اسم قاعدة البيانات
-  static const _databaseVersion = 1; // إصدار قاعدة البيانات
+  static const _databaseName = 'local_device.db';
+  static const _databaseVersion = 1;
 
-  static Database? _database; // كائن قاعدة البيانات
+  static Database? _database;
 
-  // دالة للحصول على قاعدة البيانات (تهيئتها إذا لم تكن موجودة)
   Future<Database> get database async {
-    if (_database != null) return _database!; // إذا كانت قاعدة البيانات مهيأة، يتم إرجاعها
-    _database = await _initDatabase(); // تهيئة قاعدة البيانات
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
     return _database!;
   }
 
-  // دالة لتهيئة قاعدة البيانات
   Future<Database> _initDatabase() async {
-    if (_database != null) return _database!; // إذا كانت قاعدة البيانات مهيأة، يتم إرجاعها
-    final path = join(await getDatabasesPath(), _databaseName); // تحديد مسار قاعدة البيانات
+    if (_database != null) return _database!;
+    final path = join(await getDatabasesPath(), _databaseName);
     _database = await openDatabase(
       path,
-      version: _databaseVersion, // تحديد إصدار قاعدة البيانات
-      onCreate: _onCreate, // استدعاء دالة إنشاء الجداول
+      version: _databaseVersion,
+      onCreate: _onCreate,
     );
     return _database!;
   }
 
-  // دالة لإنشاء جدول قاعدة البيانات
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS device_info (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, // معرف تلقائي
-        uuid TEXT UNIQUE NOT NULL, // UUID فريد وغير فارغ
-        code TEXT NOT NULL, // رمز الدولة
-        phone_num TEXT UNIQUE NOT NULL, // رقم الهاتف فريد وغير فارغ
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP // تاريخ الإنشاء
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT UNIQUE NOT NULL,
+        code TEXT NOT NULL,
+        phone_num TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     ''');
-    print('تم إنشاء جدول SQLite المحلي'); // طباعة رسالة عند إنشاء الجدول
+    print('تم إنشاء جدول SQLite المحلي');
   }
-
-  // دالة لجلب UUID من قاعدة البيانات
   Future<String?> getUuid() async {
-    final db = await database; // الحصول على قاعدة البيانات
-    List<Map> result = await db.query('device_info', columns: ['uuid'], limit: 1); // استعلام لجلب UUID
-    return result.isNotEmpty ? result.first['uuid'] as String : null; // إرجاع UUID إذا كان موجودًا
+    final db = await database;
+    List<Map> result = await db.query('device_info', columns: ['uuid'], limit: 1);
+    return result.isNotEmpty ? result.first['uuid'] as String : null;
   }
-
-  // دالة لجلب معلومات الجهاز (UUID ورقم الهاتف)
   Future<Map<String, String>?> getDeviceInfo() async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     List<Map> result = await db.query(
       'device_info',
-      columns: ['uuid', 'phone_num'], // الأعمدة المطلوبة
-      limit: 1, // تحديد عدد النتائج
+      columns: ['uuid', 'phone_num'],
+      limit: 1,
     );
     if (result.isNotEmpty) {
       return {
-        'uuid': result.first['uuid'] as String, // إرجاع UUID
-        'phone_num': result.first['phone_num'] as String, // إرجاع رقم الهاتف
+        'uuid': result.first['uuid'] as String,
+        'phone_num': result.first['phone_num'] as String,
       };
     }
-    return null; // إرجاع null إذا لم تكن هناك بيانات
+    return null;
   }
-
-  // دالة لإدخال أو تحديث معلومات الجهاز في قاعدة البيانات
   Future<void> upsertDeviceInfo({
-    required String uuid, // UUID
-    required String code, // رمز الدولة
-    required String phoneNum, // رقم الهاتف
+    required String uuid,
+    required String code,
+    required String phoneNum,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     await db.rawInsert('''
     INSERT OR REPLACE INTO device_info 
     (uuid, code, phone_num) 
     VALUES (?, ?, ?)
-  ''', [uuid, code, phoneNum]); // إدخال أو تحديث البيانات
+  ''', [uuid, code, phoneNum]);
   }
 }

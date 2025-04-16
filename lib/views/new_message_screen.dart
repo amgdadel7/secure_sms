@@ -1,21 +1,20 @@
-// استيراد المكتبات اللازمة
-import 'package:flutter/material.dart'; // لإنشاء واجهات المستخدم
-import 'package:fast_contacts/fast_contacts.dart'; // مكتبة للوصول إلى جهات الاتصال
-import 'package:provider/provider.dart'; // مكتبة لإدارة الحالة باستخدام Provider
-import '../controllers/message_controller.dart'; // وحدة التحكم بالرسائل
-import 'chat_screen.dart'; // شاشة المحادثة
+import 'package:flutter/material.dart';
+import 'package:fast_contacts/fast_contacts.dart';
+import 'package:provider/provider.dart';
+import '../controllers/message_controller.dart';
+import 'chat_screen.dart';
 
 /// تعريف ثوابت الألوان لتطبيق اللون الرمادي المائل للزُرقة
 class AppColors {
-  static const scaffoldBackground = Color(0xFFE6EFF6); // لون خلفية الشاشة
-  static const topBackground = Color(0xFFF2FBFF); // لون خلفية الشريط العلوي
-  static const appBarText = Color(0xFF202124); // لون النص في شريط التطبيق
-  static const appBarIcon = Color(0xFF202124); // لون الأيقونات في شريط التطبيق
-  static const inputLabel = Color(0xFF5F6368); // لون نص الإرشاد
+  static const scaffoldBackground = Color(0xFFE6EFF6); // رمادي أغمق شوي
+  static const topBackground = Color(0xFFF2FBFF); // نفس الخلفية للشريط العلوي
+  static const appBarText = Color(0xFF202124);
+  static const appBarIcon = Color(0xFF202124);
+  static const inputLabel = Color(0xFF5F6368);
 }
 
-// تعريف واجهة شاشة الرسائل الجديدة
 class NewMessageScreen extends StatefulWidget {
+
   const NewMessageScreen({Key? key}) : super(key: key);
 
   @override
@@ -23,65 +22,65 @@ class NewMessageScreen extends StatefulWidget {
 }
 
 class _NewMessageScreenState extends State<NewMessageScreen> {
-  final TextEditingController _searchController = TextEditingController(); // وحدة التحكم بحقل البحث
-  List<Contact> _contacts = []; // قائمة جهات الاتصال
-  List<Contact> _filteredContacts = []; // قائمة جهات الاتصال بعد الفلترة
-  String _searchQuery = ""; // نص البحث الحالي
+  final TextEditingController _searchController = TextEditingController();
+  List<Contact> _contacts = [];
+  List<Contact> _filteredContacts = [];
+  String _searchQuery = "";
 
   /// دالة لتوليد لون ثابت للـ Avatar بناءً على اسم جهة الاتصال
   Color _getAvatarBackgroundColor(String text) {
-    if (text.isEmpty) return Colors.grey; // إذا كان النص فارغاً، يتم استخدام اللون الرمادي
-    final int hash = text.codeUnits.fold(0, (prev, element) => prev + element); // حساب قيمة فريدة للنص
-    return Colors.primaries[hash % Colors.primaries.length].shade400; // اختيار لون بناءً على القيمة
+    if (text.isEmpty) return Colors.grey;
+    final int hash = text.codeUnits.fold(0, (prev, element) => prev + element);
+    return Colors.primaries[hash % Colors.primaries.length].shade400;
   }
 
   @override
   void initState() {
     super.initState();
-    _loadContacts(); // تحميل جهات الاتصال عند بدء الشاشة
+    _loadContacts();
   }
 
-  /// دالة لتحميل جهات الاتصال
   Future<void> _loadContacts() async {
-    final contacts = await FastContacts.getAllContacts(); // جلب جميع جهات الاتصال
+    final contacts = await FastContacts.getAllContacts();
     setState(() {
-      _contacts = contacts; // تخزين جهات الاتصال
-      _filteredContacts = contacts; // تعيين القائمة المفلترة كنسخة من القائمة الأصلية
+      _contacts = contacts;
+      _filteredContacts = contacts;
     });
   }
 
   /// فلترة جهات الاتصال وفق الاستعلام
   void _filterContacts(String query) {
     setState(() {
-      _searchQuery = query; // تحديث نص البحث
+      _searchQuery = query;
       _filteredContacts = _contacts.where((contact) {
-        final lowerQuery = query.toLowerCase(); // تحويل النص إلى أحرف صغيرة
-        final name = contact.displayName.toLowerCase(); // تحويل اسم جهة الاتصال إلى أحرف صغيرة
+        final lowerQuery = query.toLowerCase();
+        final name = contact.displayName.toLowerCase();
         final phoneMatch = contact.phones.isNotEmpty &&
-            contact.phones.any((phone) => phone.number.contains(query)); // التحقق من تطابق الرقم
-        return name.contains(lowerQuery) || phoneMatch; // التحقق من تطابق الاسم أو الرقم
+            contact.phones.any((phone) => phone.number.contains(query));
+        return name.contains(lowerQuery) || phoneMatch;
       }).toList();
     });
   }
 
   /// تطبيع رقم الهاتف للمقارنة الصحيحة
   String _normalizePhoneNumber(String phoneNumber) {
-    String normalized = phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''); // إزالة الأحرف غير الرقمية
+    String normalized = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
     if (normalized.startsWith('00')) {
-      normalized = normalized.substring(2); // إزالة "00" من البداية
+      normalized = normalized.substring(2);
     } else if (normalized.startsWith('0')) {
-      normalized = normalized.substring(1); // إزالة "0" من البداية
+      normalized = normalized.substring(1);
     }
     return normalized;
   }
 
   /// التحقق من وجود محادثة مسبقًا مع العنوان المحدد
   Future<bool> _isConversationExists(String address) async {
-    final messageController = Provider.of<MessageController>(context, listen: false); // الحصول على وحدة التحكم بالرسائل
-    final conversations = await messageController.getConversations(); // جلب المحادثات
-    String normalizedAddress = _normalizePhoneNumber(address); // تطبيع العنوان
+    final messageController =
+    Provider.of<MessageController>(context, listen: false);
+    final conversations = await messageController.getConversations();
+    String normalizedAddress = _normalizePhoneNumber(address);
     for (var key in conversations.keys) {
-      if (_normalizePhoneNumber(key) == normalizedAddress) { // مقارنة العنوان مع المحادثات
+      if (_normalizePhoneNumber(key) == normalizedAddress) {
         return true;
       }
     }
@@ -90,11 +89,12 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
   /// الحصول على المفتاح المطابق للمحادثة إن وجد
   Future<String?> _getExistingConversationKey(String address) async {
-    final messageController = Provider.of<MessageController>(context, listen: false); // الحصول على وحدة التحكم بالرسائل
-    final conversations = await messageController.getConversations(); // جلب المحادثات
-    String normalizedAddress = _normalizePhoneNumber(address); // تطبيع العنوان
+    final messageController =
+    Provider.of<MessageController>(context, listen: false);
+    final conversations = await messageController.getConversations();
+    String normalizedAddress = _normalizePhoneNumber(address);
     for (var key in conversations.keys) {
-      if (_normalizePhoneNumber(key) == normalizedAddress) { // مقارنة العنوان مع المحادثات
+      if (_normalizePhoneNumber(key) == normalizedAddress) {
         return key;
       }
     }
@@ -103,109 +103,116 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
 
   /// تجميع جهات الاتصال حسب أول حرف من الاسم
   Map<String, List<Contact>> _groupContactsByInitial(List<Contact> contacts) {
-    contacts.sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase())); // ترتيب جهات الاتصال
+    contacts.sort((a, b) =>
+        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
     final Map<String, List<Contact>> grouped = {};
     for (var contact in contacts) {
       String firstLetter = contact.displayName.isNotEmpty
-          ? contact.displayName[0].toUpperCase() // الحصول على الحرف الأول من الاسم
-          : "#"; // إذا كان الاسم فارغاً
+          ? contact.displayName[0].toUpperCase()
+          : "#";
       if (!grouped.containsKey(firstLetter)) {
-        grouped[firstLetter] = []; // إنشاء مجموعة جديدة إذا لم تكن موجودة
+        grouped[firstLetter] = [];
       }
-      grouped[firstLetter]!.add(contact); // إضافة جهة الاتصال إلى المجموعة
+      grouped[firstLetter]!.add(contact);
     }
     return grouped;
   }
 
   @override
   Widget build(BuildContext context) {
-    final groupedContacts = _filteredContacts; // استخدام القائمة المفلترة
+    final groupedContacts =  _filteredContacts;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground, // لون خلفية الشاشة
+      backgroundColor: AppColors.scaffoldBackground,
+      // الشريط العلوي بخلفية اللون الرمادي المائل للزُرقة
       appBar: AppBar(
-        backgroundColor: AppColors.topBackground, // لون خلفية الشريط العلوي
-        elevation: 0, // إزالة الظل
+        backgroundColor: AppColors.topBackground,
+        elevation: 0,
         title: const Text(
-          "New conversation", // عنوان الشريط العلوي
+          "New conversation",
           style: TextStyle(
-            color: AppColors.appBarText, // لون النص
-            fontWeight: FontWeight.w500, // وزن النص متوسط
+            color: AppColors.appBarText,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        iconTheme: const IconThemeData(color: AppColors.appBarIcon), // لون الأيقونات
+        iconTheme: const IconThemeData(color: AppColors.appBarIcon),
       ),
       body: Column(
         children: [
-          // مربع البحث
+          // خلفية موحدة للشريط العلوي ومربع البحث
           Container(
-            color: AppColors.topBackground, // لون خلفية مربع البحث
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // مسافة داخلية
+            color: AppColors.topBackground,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            // مربع البحث بدون حواف
             child: TextField(
-              controller: _searchController, // وحدة التحكم بحقل البحث
-              cursorColor: AppColors.appBarText, // لون مؤشر الكتابة
-              style: const TextStyle(color: AppColors.appBarText, fontSize: 16), // تنسيق النص
+              controller: _searchController,
+              cursorColor: AppColors.appBarText,
+              style:
+              const TextStyle(color: AppColors.appBarText, fontSize: 16),
               decoration: InputDecoration(
-                filled: true, // تمكين الخلفية
-                fillColor: AppColors.topBackground, // لون الخلفية
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // مسافة داخلية
-                labelText: "To: Type names, phone numbers", // نص الإرشاد
+                filled: true,
+                fillColor: AppColors.topBackground,
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                labelText: "To: Type names, phone numbers",
                 labelStyle: TextStyle(
-                  color: AppColors.inputLabel, // لون نص الإرشاد
-                  fontSize: 14, // حجم النص
+                  color: AppColors.inputLabel,
+                  fontSize: 14,
                 ),
-                border: InputBorder.none, // إزالة الإطار
-                suffixIcon: _searchQuery.isNotEmpty // إذا كان هناك نص مكتوب
+                // إزالة الحواف بالكامل
+                border: InputBorder.none,
+                suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear), // أيقونة الحذف
-                        onPressed: () {
-                          _searchController.clear(); // مسح النص
-                          _filterContacts(""); // إعادة تعيين قائمة جهات الاتصال
-                        },
-                        color: AppColors.inputLabel, // لون الأيقونة
-                      )
-                    : null, // إذا لم يكن هناك نص، لا يتم عرض الأيقونة
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filterContacts("");
+                  },
+                  color: AppColors.inputLabel,
+                )
+                    : null,
               ),
-              onChanged: _filterContacts, // استدعاء دالة الفلترة عند تغيير النص
+              onChanged: _filterContacts,
             ),
           ),
-          // قائمة جهات الاتصال
+          // لا توجد فواصل هنا (تم إزالة Divider)
+          // قائمة جهات الاتصال مع التجميع بحسب أول حرف
           Expanded(
             child: ListView.builder(
-              physics: const BouncingScrollPhysics(), // تأثير التمرير
-              itemCount: groupedContacts.length + (_searchQuery.isNotEmpty ? 1 : 0), // عدد العناصر
+              physics: const BouncingScrollPhysics(),
+              itemCount: groupedContacts.length + (_searchQuery.isNotEmpty ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_searchQuery.isNotEmpty && index == 0) {
                   // خيار إرسال الرقم المكتوب
                   return ListTile(
-                    leading: const Icon(Icons.person, color: Colors.blueGrey), // أيقونة الشخص
+                    leading: const Icon(Icons.person, color: Colors.blueGrey),
                     title: Text(
-                      "Send to $_searchQuery", // النص المعروض
+                      "Send to $_searchQuery",
                       style: const TextStyle(
-                        color: AppColors.appBarText, // لون النص
-                        fontWeight: FontWeight.w500, // وزن النص متوسط
+                        color: AppColors.appBarText,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      _searchQuery, // الرقم المكتوب
-                      style: TextStyle(color: AppColors.inputLabel), // لون النص
+                      _searchQuery,
+                      style: TextStyle(color: AppColors.inputLabel),
                     ),
                     onTap: () async {
-                      bool exists = await _isConversationExists(_searchQuery); // التحقق من وجود المحادثة
-                      String addressToUse = _searchQuery; // تعيين العنوان الافتراضي
-                      if (exists) { // إذا كانت المحادثة موجودة
-                        String? existingKey = await _getExistingConversationKey(_searchQuery); // الحصول على المفتاح
+                      bool exists = await _isConversationExists(_searchQuery);
+                      String addressToUse = _searchQuery;
+                      if (exists) {
+                        String? existingKey =
+                        await _getExistingConversationKey(_searchQuery);
                         if (existingKey != null) {
-                          addressToUse = existingKey; // استخدام المفتاح الموجود
+                          addressToUse = existingKey;
                         }
                       }
-                      // الانتقال إلى شاشة المحادثة
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ChatScreen(
-                            address: addressToUse, // العنوان المستخدم
-                            recipient: _searchQuery, // الرقم المكتوب
+                            address: addressToUse,
+                            recipient: _searchQuery,
                           ),
                         ),
                       );
@@ -213,53 +220,52 @@ class _NewMessageScreenState extends State<NewMessageScreen> {
                   );
                 }
 
-                // عرض جهة الاتصال
                 final contact = groupedContacts[_searchQuery.isNotEmpty ? index - 1 : index];
-                final displayName = contact.displayName.trim(); // اسم جهة الاتصال
+                final displayName = contact.displayName.trim();
                 final phoneNumber = contact.phones.isNotEmpty
-                    ? contact.phones.first.number // رقم الهاتف الأول
+                    ? contact.phones.first.number
                     : "";
 
                 return ListTile(
                   leading: CircleAvatar(
-                    radius: 20, // نصف قطر الصورة
-                    backgroundColor: _getAvatarBackgroundColor(displayName), // لون الخلفية
+                    radius: 20,
+                    backgroundColor: _getAvatarBackgroundColor(displayName),
                     child: Text(
-                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?', // الحرف الأول من الاسم
+                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                       style: const TextStyle(
-                        color: Colors.white, // لون النص
-                        fontWeight: FontWeight.bold, // وزن النص عريض
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   title: Text(
-                    displayName, // اسم جهة الاتصال
+                    displayName,
                     style: const TextStyle(
-                      color: AppColors.appBarText, // لون النص
-                      fontWeight: FontWeight.w500, // وزن النص متوسط
+                      color: AppColors.appBarText,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   subtitle: Text(
-                    phoneNumber.isNotEmpty ? phoneNumber : "No phone number", // عرض رقم الهاتف أو رسالة بديلة
-                    style: TextStyle(color: AppColors.inputLabel), // لون النص
+                    phoneNumber.isNotEmpty ? phoneNumber : "No phone number",
+                    style: TextStyle(color: AppColors.inputLabel),
                   ),
                   onTap: () async {
-                    if (phoneNumber.isNotEmpty) { // التحقق من وجود رقم الهاتف
-                      bool exists = await _isConversationExists(phoneNumber); // التحقق من وجود المحادثة
-                      String addressToUse = phoneNumber; // تعيين العنوان الافتراضي
-                      if (exists) { // إذا كانت المحادثة موجودة
-                        String? existingKey = await _getExistingConversationKey(phoneNumber); // الحصول على المفتاح
+                    if (phoneNumber.isNotEmpty) {
+                      bool exists = await _isConversationExists(phoneNumber);
+                      String addressToUse = phoneNumber;
+                      if (exists) {
+                        String? existingKey =
+                        await _getExistingConversationKey(phoneNumber);
                         if (existingKey != null) {
-                          addressToUse = existingKey; // استخدام المفتاح الموجود
+                          addressToUse = existingKey;
                         }
                       }
-                      // الانتقال إلى شاشة المحادثة
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ChatScreen(
-                            address: addressToUse, // العنوان المستخدم
-                            recipient: displayName, // اسم جهة الاتصال
+                            address: addressToUse,
+                            recipient: displayName,
                           ),
                         ),
                       );

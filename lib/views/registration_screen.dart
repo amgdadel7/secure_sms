@@ -1,16 +1,14 @@
-// استيراد المكتبات اللازمة
-import 'package:flutter/material.dart'; // لإنشاء واجهات المستخدم
-import 'package:flutter/services.dart'; // للتعامل مع خدمات النظام
-import 'package:provider/provider.dart'; // لإدارة الحالة باستخدام Provider
-import 'package:geolocator/geolocator.dart'; // للوصول إلى خدمات الموقع
-import 'package:untitled14/utils/country_code_utils.dart'; // أدوات لمعالجة رموز الدول
-import 'package:untitled14/utils/validators.dart'; // أدوات للتحقق من صحة المدخلات
-import '../widgets/country_picker_field.dart'; // ويدجت لاختيار الدولة
-import '../controllers/registration_controller.dart'; // وحدة التحكم بالتسجيل
-import '../services/location_service.dart'; // خدمة الموقع
-import '../controllers/first_launch_manager.dart'; // إدارة الإطلاق الأول للتطبيق
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:untitled14/utils/country_code_utils.dart';
+import 'package:untitled14/utils/validators.dart';
+import '../widgets/country_picker_field.dart';
+import '../controllers/registration_controller.dart';
+import '../services/location_service.dart';
+import '../controllers/first_launch_manager.dart';
 
-// تعريف واجهة شاشة التسجيل
 class RegistrationScreen extends StatefulWidget {
   @override
   _RegistrationScreenState createState() => _RegistrationScreenState();
@@ -18,92 +16,84 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen>
     with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>(); // مفتاح النموذج للتحقق من صحة المدخلات
-  final _phoneController = TextEditingController(); // وحدة التحكم بحقل رقم الهاتف
-  String _countryCode = 'EG'; // رمز الدولة الافتراضي
-  bool _isLoading = false; // حالة التحميل
-  late AnimationController _animationController; // وحدة التحكم بالأنيميشن
-  late Animation<double> _opacityAnimation; // أنيميشن لتغيير الشفافية
+  final _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  String _countryCode = 'EG';
+  bool _isLoading = false;
+  late AnimationController _animationController;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
     super.initState();
-    _requestLocationPermission(); // طلب صلاحيات الموقع
-    _setupAnimations(); // إعداد الأنيميشن
-    _autoDetectCountry(); // الكشف التلقائي عن الدولة
+    _requestLocationPermission();
+    _setupAnimations();
+    _autoDetectCountry();
   }
 
-  // إعداد الأنيميشن
   void _setupAnimations() {
     _animationController = AnimationController(
-      vsync: this, // توفير vsync للأنيميشن
-      duration: Duration(seconds: 2), // مدة الأنيميشن
+      vsync: this,
+      duration: Duration(seconds: 2),
     );
     _opacityAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
-        parent: _animationController, // وحدة التحكم بالأنيميشن
-        curve: Curves.easeInOut, // منحنى الأنيميشن
+        parent: _animationController,
+        curve: Curves.easeInOut,
       ),
     );
-    _animationController.forward(); // بدء الأنيميشن
+    _animationController.forward();
   }
 
-  // طلب صلاحيات الموقع
   Future<void> _requestLocationPermission() async {
-    final status = await Geolocator.checkPermission(); // التحقق من حالة الصلاحيات
+    final status = await Geolocator.checkPermission();
     if (status == LocationPermission.denied) {
-      await Geolocator.requestPermission(); // طلب الصلاحيات إذا كانت مرفوضة
+      await Geolocator.requestPermission();
     }
   }
 
-  // الكشف التلقائي عن الدولة باستخدام GPS
   Future<void> _autoDetectCountry() async {
-    final code = await LocationService.getCountryCodeByGPS(); // الحصول على رمز الدولة
+    final code = await LocationService.getCountryCodeByGPS();
     if (code != null && mounted) {
-      setState(() => _countryCode = code); // تحديث رمز الدولة
+      setState(() => _countryCode = code);
     }
   }
 
-  // معالجة إرسال النموذج
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return; // التحقق من صحة المدخلات
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true); // تفعيل حالة التحميل
-    _animationController.reverse(); // عكس الأنيميشن
+    setState(() => _isLoading = true);
+    _animationController.reverse();
 
     try {
-      // استدعاء دالة التسجيل
       await RegistrationController.handleRegistration(
-        countryCode: '+${CountryCodeUtils.getPhoneCode(_countryCode)}', // رمز الدولة
-        phoneNumber: _phoneController.text, // رقم الهاتف
-        context: context, // تمرير السياق
-        onError: (error) => _showErrorDialog(error), // عرض رسالة خطأ عند الفشل
+        countryCode: '+${CountryCodeUtils.getPhoneCode(_countryCode)}',
+        phoneNumber: _phoneController.text,
+        context: context, // أضف هذا السطر
+        onError: (error) => _showErrorDialog(error),
       );
 
-      // إكمال عملية التسجيل
       await Provider.of<FirstLaunchManager>(context, listen: false)
           .completeRegistration();
 
-      // الانتقال إلى الشاشة الرئيسية
       Navigator.pushReplacementNamed(context, '/home');
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false); // إيقاف حالة التحميل
-        _animationController.forward(); // إعادة تشغيل الأنيميشن
+        setState(() => _isLoading = false);
+        _animationController.forward();
       }
     }
   }
 
-  // عرض رسالة خطأ
   void _showErrorDialog(String error) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Error Occurred'), // عنوان الرسالة
-        content: Text(error), // محتوى الرسالة
+        title: Text('Error Occurred'),
+        content: Text(error),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx), // إغلاق الرسالة
+            onPressed: () => Navigator.pop(ctx),
             child: Text('OK'),
           )
         ],
@@ -113,7 +103,7 @@ class _RegistrationScreenState extends State<RegistrationScreen>
 
   @override
   void dispose() {
-    _animationController.dispose(); // التخلص من وحدة التحكم بالأنيميشن
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -121,23 +111,23 @@ class _RegistrationScreenState extends State<RegistrationScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: AnimatedBuilder(
-        animation: _animationController, // استخدام الأنيميشن
+        animation: _animationController,
         builder: (context, child) => Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter, // بداية التدرج
-              end: Alignment.bottomCenter, // نهاية التدرج
-              colors: [Colors.blue.shade800, Colors.blue.shade400], // ألوان التدرج
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.blue.shade800, Colors.blue.shade400],
             ),
           ),
           child: Padding(
-            padding: EdgeInsets.all(32), // مسافة داخلية
+            padding: EdgeInsets.all(32),
             child: FadeTransition(
-              opacity: _opacityAnimation, // تطبيق الأنيميشن
+              opacity: _opacityAnimation,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, // محاذاة العناصر في المنتصف
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildFormCard(), // بناء بطاقة النموذج
+                  _buildFormCard(),
                 ],
               ),
             ),
@@ -147,53 +137,54 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     );
   }
 
-  // بناء بطاقة النموذج
   Widget _buildFormCard() {
     return Card(
-      elevation: 10, // ارتفاع الظل
+      elevation: 10,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20), // زوايا دائرية
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: EdgeInsets.all(24), // مسافة داخلية
+        padding: EdgeInsets.all(24),
         child: Form(
-          key: _formKey, // مفتاح النموذج
+          key: _formKey,
           child: Column(
             children: [
               Text(
-                'Get Started', // عنوان النموذج
+                'Get Started',
                 style: TextStyle(
-                  fontSize: 28, // حجم النص
-                  fontWeight: FontWeight.bold, // وزن النص
-                  color: Colors.blue.shade800, // لون النص
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade800,
                 ),
               ),
-              SizedBox(height: 30), // مسافة عمودية
+              SizedBox(height: 30),
+              // In your RegistrationScreen build method
               CountryPickerField(
-                countryCode: _countryCode, // رمز الدولة الحالي
+                countryCode: _countryCode, // Pass current country code
+
                 onCountrySelected: (country) => setState(() {
-                  _countryCode = country.countryCode; // تحديث رمز الدولة عند التحديد
+                  _countryCode = country.countryCode;
                 }),
               ),
-              SizedBox(height: 20), // مسافة عمودية
+              SizedBox(height: 20),
               TextFormField(
-                controller: _phoneController, // وحدة التحكم بحقل النص
-                keyboardType: TextInputType.phone, // نوع لوحة المفاتيح
-                style: TextStyle(fontSize: 16), // تنسيق النص
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                style: TextStyle(fontSize: 16),
                 decoration: InputDecoration(
-                  labelText: 'Phone Number', // نص الإرشاد
+                  labelText: 'Phone Number',
                   prefix: Text(
-                    '+${CountryCodeUtils.getPhoneCode(_countryCode)} ', // رمز الدولة
-                    style: TextStyle(fontWeight: FontWeight.bold), // وزن النص
+                    '+${CountryCodeUtils.getPhoneCode(_countryCode)} ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10), // زوايا دائرية
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                validator: (value) => Validators.validatePhoneNumber(value), // التحقق من صحة الرقم
+                validator: (value) => Validators.validatePhoneNumber(value),
               ),
-              SizedBox(height: 30), // مسافة عمودية
-              _buildSubmitButton(), // زر الإرسال
+              SizedBox(height: 30),
+              _buildSubmitButton(),
             ],
           ),
         ),
@@ -201,44 +192,43 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     );
   }
 
-  // بناء زر الإرسال
   Widget _buildSubmitButton() {
     return AnimatedContainer(
-      duration: Duration(milliseconds: 300), // مدة الأنيميشن
-      width: _isLoading ? 60 : 200, // عرض الزر بناءً على حالة التحميل
-      height: 50, // ارتفاع الزر
+      duration: Duration(milliseconds: 300),
+      width: _isLoading ? 60 : 200,
+      height: 50,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blue.shade600, Colors.blue.shade400], // ألوان التدرج
+          colors: [Colors.blue.shade600, Colors.blue.shade400],
         ),
-        borderRadius: BorderRadius.circular(_isLoading ? 30 : 10), // زوايا دائرية
+        borderRadius: BorderRadius.circular(_isLoading ? 30 : 10),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3), // لون الظل
-            blurRadius: 10, // درجة التمويه
-            offset: Offset(0, 5), // إزاحة الظل
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: Offset(0, 5),
           )
         ],
       ),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleSubmit, // تعطيل الزر أثناء التحميل
+        onPressed: _isLoading ? null : _handleSubmit,
         style: ElevatedButton.styleFrom(
-          primary: Colors.transparent, // لون الخلفية شفاف
-          shadowColor: Colors.transparent, // لون الظل شفاف
+          primary: Colors.transparent,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(_isLoading ? 30 : 10), // زوايا دائرية
+            borderRadius: BorderRadius.circular(_isLoading ? 30 : 10),
           ),
         ),
         child: _isLoading
-            ? CircularProgressIndicator(color: Colors.white) // مؤشر تحميل
+            ? CircularProgressIndicator(color: Colors.white)
             : Text(
-                'Start Now', // نص الزر
-                style: TextStyle(
-                  fontSize: 18, // حجم النص
-                  fontWeight: FontWeight.bold, // وزن النص
-                  color: Colors.white, // لون النص
-                ),
-              ),
+          'Start Now',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

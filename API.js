@@ -1,26 +1,23 @@
-// استيراد المكتبات اللازمة
-const express = require('express'); // لإنشاء خادم ويب
-const mysql = require('mysql2/promise'); // للتعامل مع قاعدة البيانات MySQL باستخدام وعود
-const crypto = require('crypto'); // لتوليد المفاتيح والتشفير
-const EC = require('elliptic').ec; // مكتبة لتشفير ECC
-const app = express(); // إنشاء تطبيق Express
-const port = process.env.PORT || 3000; // تحديد المنفذ الذي سيعمل عليه الخادم
+const express = require('express');
+const mysql = require('mysql2/promise'); // تأكد من استخدام mysql2/promise
+const crypto = require('crypto');
+const EC = require('elliptic').ec;
+const app = express();
+const port = process.env.PORT || 3000;
 
-app.use(express.json()); // تمكين معالجة JSON في الطلبات
+app.use(express.json());
 
-// إعداد الاتصال بقاعدة البيانات باستخدام Connection Pooling
+// إعداد الاتصال بقاعدة البيانات
 const pool = mysql.createPool({
-  host: 'sql.freedb.tech', // عنوان الخادم
-  port: 3306, // المنفذ
-  user: 'freedb_phone_info', // اسم المستخدم
-  password: 'GwUR7uUZ@p#P2?z', // كلمة المرور
-  database: 'freedb_massege', // اسم قاعدة البيانات
-  waitForConnections: true, // انتظار الاتصالات عند الوصول إلى الحد الأقصى
-  connectionLimit: 10, // الحد الأقصى للاتصالات
-  queueLimit: 0 // عدم وجود حد للطلبات في قائمة الانتظار
+  host: 'sql.freedb.tech',
+  port: 3306,
+  user: 'freedb_phone_info',
+  password: 'GwUR7uUZ@p#P2?z',
+  database: 'freedb_massege',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
-
-// دالة لإنشاء جدول device_info إذا لم يكن موجودًا
 async function initializeDatabase() {
   try {
     await pool.query(`
@@ -35,17 +32,18 @@ async function initializeDatabase() {
     console.log('✅ جدول device_info جاهز');
   } catch (err) {
     console.error('❌ خطأ في إنشاء الجدول:', err);
-    process.exit(1); // إنهاء التطبيق إذا فشل إنشاء الجدول
+    process.exit(1); // إنهاء التطبيق في حالة فشل إنشاء الجدول
   }
 }
 
-// نقطة API لتسجيل الجهاز
+// نقطة تسجيل الجهاز
 app.post('/api/device-info', async (req, res) => {
-  const { uuid, code, phone_num } = req.body; // استخراج البيانات من الطلب
-  await initializeDatabase(); // التأكد من أن الجدول موجود
-  const connection = await pool.getConnection(); // الحصول على اتصال من المسبح
+  const { uuid, code, phone_num } = req.body;
+  await initializeDatabase();
+  // استخدام Connection Pooling بشكل فعال
+  const connection = await pool.getConnection();
   try {
-    await connection.query('START TRANSACTION'); // بدء معاملة
+    await connection.query('START TRANSACTION');
     const query = `
       INSERT INTO device_info (uuid, code, phone_num)
       VALUES (?, ?, ?)
@@ -53,19 +51,19 @@ app.post('/api/device-info', async (req, res) => {
         code = VALUES(code),
         phone_num = VALUES(phone_num)
     `;
-    await connection.query(query, [uuid, code, phone_num]); // إدخال البيانات أو تحديثها
-    await connection.query('COMMIT'); // تأكيد المعاملة
+    await connection.query(query, [uuid, code, phone_num]);
+    await connection.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
-    await connection.query('ROLLBACK'); // التراجع عن المعاملة في حالة الخطأ
+    await connection.query('ROLLBACK');
     console.error('❌ خطأ في التسجيل:', err);
     res.status(500).json({ error: 'فشل في التسجيل' });
   } finally {
-    connection.release(); // تحرير الاتصال
+    connection.release();
   }
 });
+// إنشاء الجدول باستخدام async/await
 
-// نقطة API للبحث عن جهاز باستخدام رقم الهاتف
 app.post('/api/find-device', async (req, res) => {
   const { searchValue } = req.body;
 
@@ -74,7 +72,8 @@ app.post('/api/find-device', async (req, res) => {
   }
 
   try {
-    // إنشاء نسختين من قيمة البحث (مع وبدون +)
+    // تعديل قيمة البحث بدون + أو بـ +
+
     const searchVariants = [
       searchValue,
       searchValue.startsWith('+') ? searchValue.substring(1) : `+${searchValue}`
@@ -87,10 +86,10 @@ app.post('/api/find-device', async (req, res) => {
       LIMIT 1
     `;
 
-    const [results] = await pool.query(query, searchVariants); // تنفيذ الاستعلام
+    const [results] = await pool.query(query, searchVariants);
 
     if (results.length > 0) {
-      return res.json({ uuid: results[0].uuid }); // إرجاع UUID إذا تم العثور عليه
+      return res.json({ uuid: results[0].uuid });
     } else {
       return res.status(404).json({ error: 'لا يوجد جهاز مطابق' });
     }
@@ -99,18 +98,17 @@ app.post('/api/find-device', async (req, res) => {
     return res.status(500).json({ error: 'خطأ داخلي في الخادم' });
   }
 });
-
-// دالة لتوليد مفاتيح ECDH
+// توليد المفاتيح باستخدام ECDH
 const generateECDHKeys = () => {
-  const ecdh = crypto.createECDH('secp256k1'); // إنشاء كائن ECDH باستخدام منحنى secp256k1
-  ecdh.generateKeys(); // توليد المفاتيح
+  const ecdh = crypto.createECDH('secp256k1');
+  ecdh.generateKeys();
   return {
-    publicKey: ecdh.getPublicKey('hex'), // المفتاح العام
-    privateKey: ecdh.getPrivateKey('hex') // المفتاح الخاص
+    publicKey: ecdh.getPublicKey('hex'),
+    privateKey: ecdh.getPrivateKey('hex')
   };
 };
 
-// نقطة API لتبادل المفاتيح
+// نقطة تبادل المفاتيح المعدلة
 app.post('/api/exchange-keys', async (req, res) => {
   const { senderUUID, receiverUUID, senderPublicKey, targetPhone } = req.body;
 
@@ -125,10 +123,10 @@ app.post('/api/exchange-keys', async (req, res) => {
       return res.status(400).json({ error: 'تنسيق المفتاح العام غير صالح' });
     }
 
-    const ec = new EC('secp256k1'); // إنشاء كائن EC باستخدام منحنى secp256k1
+    const ec = new EC('secp256k1');
     let publicKey;
     try {
-      publicKey = ec.keyFromPublic(senderPublicKey, 'hex'); // تحليل المفتاح العام
+      publicKey = ec.keyFromPublic(senderPublicKey, 'hex');
       if (!publicKey.validate()) {
         return res.status(400).json({ error: 'المفتاح العام غير صالح' });
       }
@@ -136,7 +134,7 @@ app.post('/api/exchange-keys', async (req, res) => {
       return res.status(400).json({ error: 'فشل في تحليل المفتاح العام' });
     }
 
-    // البحث عن الجهاز المستقبل باستخدام رقم الهاتف
+    // البحث عن الجهاز المستقبل باستخدام query مباشرة من pool
     const [targetDevice] = await pool.query(
       'SELECT uuid, phone_num FROM device_info WHERE phone_num = ?',
       [targetPhone]
@@ -168,8 +166,6 @@ app.post('/api/exchange-keys', async (req, res) => {
     });
   }
 });
-
-// دالة لإنشاء جدول key_info إذا لم يكن موجودًا
 async function createKeyInfoTable() {
   try {
     await pool.query(`
@@ -193,20 +189,21 @@ async function createKeyInfoTable() {
 
 // نقطة API لحفظ المفاتيح
 app.post('/api/store-keys', async (req, res) => {
-  const { senderUUID, senderNUM, receiverUUID, receiverNUM, sharedSecret } = req.body;
+  const { senderUUID,senderNUM, receiverUUID,receiverNUM, sharedSecret } = req.body;
 
   try {
-    await createKeyInfoTable(); // التأكد من وجود الجدول
+    // تأكد من وجود الجدول أولاً
+    await createKeyInfoTable();
 
     const query = `
-      INSERT INTO key_info (senderUUID, senderNUM, receiverUUID, receiverNUM, sharedSecret)
+      INSERT INTO key_info (senderUUID,senderNUM, receiverUUID,receiverNUM, sharedSecret)
       VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         sharedSecret = VALUES(sharedSecret),
         created_at = CURRENT_TIMESTAMP
     `;
 
-    await pool.query(query, [senderUUID, senderNUM, receiverUUID, receiverNUM, sharedSecret]); // إدخال البيانات أو تحديثها
+    await pool.query(query, [senderUUID,senderNUM, receiverUUID,receiverNUM, sharedSecret]);
     res.json({ success: true });
   } catch (err) {
     console.error('❌ خطأ في حفظ المفاتيح:', err);
@@ -216,8 +213,6 @@ app.post('/api/store-keys', async (req, res) => {
     });
   }
 });
-
-// نقطة API لاسترجاع المفاتيح باستخدام UUID
 app.post('/api/get-keys', async (req, res) => {
   const { senderUUID, receiverUUID } = req.body;
 
@@ -255,22 +250,27 @@ app.post('/api/get-keys', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ خطأ في استرجاع البيانات:', err);
+    console.error('❌ خطأ في استرجاع البيانات:', {
+      error: err.message,
+      query: err.sql,
+      parameters: req.body
+    });
+
     res.status(500).json({
       error: 'فشل في استرجاع البيانات',
-      details: err.message
+      details: process.env.NODE_ENV === 'development'
+        ? err.message
+        : 'حدث خطأ غير متوقع'
     });
   }
 });
-
-// نقطة API لاسترجاع المفاتيح باستخدام أرقام الهواتف
 app.post('/api/get-keys-by-num', async (req, res) => {
   const { senderNUM, receiverNUM } = req.body;
 
   try {
     if (!senderNUM || !receiverNUM) {
       return res.status(400).json({
-        error: 'يجب إرسال senderNUM و receiverNUM'
+        error: 'يجب إرسال senderUUID و receiverUUID'
       });
     }
 
@@ -301,15 +301,20 @@ app.post('/api/get-keys-by-num', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ خطأ في استرجاع البيانات:', err);
+    console.error('❌ خطأ في استرجاع البيانات:', {
+      error: err.message,
+      query: err.sql,
+      parameters: req.body
+    });
+
     res.status(500).json({
       error: 'فشل في استرجاع البيانات',
-      details: err.message
+      details: process.env.NODE_ENV === 'development'
+        ? err.message
+        : 'حدث خطأ غير متوقع'
     });
   }
 });
-
-// نقطة API للتحقق من وجود مفتاح مشترك
 app.post('/api/check-key', async (req, res) => {
   const { senderNUM, receiverNUM } = req.body;
 
@@ -336,7 +341,6 @@ app.post('/api/check-key', async (req, res) => {
   }
 });
 
-// بدء تشغيل الخادم
 app.listen(port, () => {
   console.log(`🚀 الخادم يعمل على المنفذ ${port}`);
 });

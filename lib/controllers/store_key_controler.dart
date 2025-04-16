@@ -1,164 +1,189 @@
-// استيراد المكتبات اللازمة
-import 'package:sqflite/sqflite.dart'; // مكتبة للتعامل مع قواعد البيانات SQLite
-import 'package:path/path.dart'; // مكتبة لإنشاء مسارات الملفات
-
-// تعريف كلاس DatabaseHelper لإدارة قاعدة البيانات
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 class DatabaseHelper {
-  static Database? _database; // كائن قاعدة البيانات (يتم تهيئته عند الحاجة)
+  static Database? _database;
 
-  // دالة للحصول على قاعدة البيانات (تهيئتها إذا لم تكن موجودة)
   Future<Database> get database async {
-    if (_database != null) return _database!; // إذا كانت قاعدة البيانات مهيأة، يتم إرجاعها
-    _database = await _initDatabase(); // تهيئة قاعدة البيانات
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
     return _database!;
   }
 
-  // دالة لتهيئة قاعدة البيانات
   Future<Database> _initDatabase() async {
-    final path = join(await getDatabasesPath(), 'local_keys.db'); // تحديد مسار قاعدة البيانات
+    final path = join(await getDatabasesPath(), 'local_keys.db');
     return openDatabase(
       path,
-      version: 2, // إصدار قاعدة البيانات
-      onCreate: onCreate, // استدعاء دالة إنشاء الجداول عند الإنشاء
+      version: 2, // زيادة الإصدار من 1 إلى 2
+      onCreate: onCreate,
     );
   }
-
-  // دالة لجلب المفتاح المشترك باستخدام UUID
   Future<BigInt?> getSharedSecret({
-    required String senderUUID, // UUID الخاص بالمرسل
-    required String receiverUUID, // UUID الخاص بالمستقبل
+    required String senderUUID,
+    required String receiverUUID,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     final List<Map<String, dynamic>> result = await db.query(
-      'key_info', // اسم الجدول
-      columns: ['sharedSecret'], // الأعمدة المطلوبة
-      where: 'senderUUID = ? AND receiverUUID = ?', // شرط البحث
-      whereArgs: [senderUUID, receiverUUID], // قيم البحث
+      'key_info',
+      columns: ['sharedSecret'],
+      where: 'senderUUID = ? AND receiverUUID = ?',
+      whereArgs: [senderUUID, receiverUUID],
     );
-    print("filteredMessages1${result.first['sharedSecret']}"); // طباعة المفتاح المشترك
+    print("filteredMessages1${result.first['sharedSecret']}");
     return result.isNotEmpty
-        ? BigInt.parse(result.first['sharedSecret'] as String) // إرجاع المفتاح إذا كان موجودًا
-        : null; // إرجاع null إذا لم يكن موجودًا
+        ? BigInt.parse(result.first['sharedSecret'] as String)
+        : null;
   }
-
-  // دالة لجلب المفتاح المشترك باستخدام أرقام الهواتف
   Future<BigInt?> getSharedSecret1({
-    required String senderNUM, // رقم هاتف المرسل
-    required String receiverNUM, // رقم هاتف المستقبل
+    required String senderNUM,
+    required String receiverNUM,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     final List<Map<String, dynamic>> result = await db.query(
-      'key_info', // اسم الجدول
-      columns: ['sharedSecret'], // الأعمدة المطلوبة
-      where: 'senderNUM = ? AND receiverNUM = ?', // شرط البحث
-      whereArgs: [senderNUM, receiverNUM], // قيم البحث
+      'key_info',
+      columns: ['sharedSecret'],
+      where: 'senderNUM = ? AND receiverNUM = ?',
+      whereArgs: [senderNUM, receiverNUM],
     );
-    print("filteredMessages1${result.first['sharedSecret']}"); // طباعة المفتاح المشترك
+    print("filteredMessages1${result.first['sharedSecret']}");
     return result.isNotEmpty
-        ? BigInt.parse(result.first['sharedSecret'] as String) // إرجاع المفتاح إذا كان موجودًا
-        : null; // إرجاع null إذا لم يكن موجودًا
+        ? BigInt.parse(result.first['sharedSecret'] as String)
+        : null;
   }
-
-  // دالة لجلب معلومات المفاتيح باستخدام أرقام الهواتف
   Future<List<Map<String, dynamic>>> fetchKeyInfoByNumbers({
-    required String senderNUM, // رقم هاتف المرسل
-    required String receiverNUM, // رقم هاتف المستقبل
+    required String senderNUM,
+    required String receiverNUM,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database; // تأكد أنك محضر الدالة التي ترجع قاعدة البيانات
+
     final result = await db.query(
-      'key_info', // اسم الجدول
-      where: '(senderNUM = ? AND receiverNUM = ?) OR (senderNUM = ? AND receiverNUM = ?)', // شرط البحث
-      whereArgs: [senderNUM, receiverNUM, receiverNUM, senderNUM], // قيم البحث
+      'key_info',
+      where: '(senderNUM = ? AND receiverNUM = ?) OR (senderNUM = ? AND receiverNUM = ?)',
+      whereArgs: [senderNUM, receiverNUM, receiverNUM, senderNUM],
     );
 
     if (result.isNotEmpty) {
-      print('✅ تم العثور على ${result.length} نتيجة'); // طباعة عدد النتائج إذا كانت موجودة
+      print('✅ تم العثور على ${result.length} نتيجة');
     } else {
-      print('❌ لم يتم العثور على أي نتائج'); // طباعة رسالة إذا لم تكن هناك نتائج
+      print('❌ لم يتم العثور على أي نتائج');
     }
 
-    return result; // إرجاع النتائج
+    return result;
   }
 
-  // دالة لإنشاء جدول قاعدة البيانات
   Future<void> onCreate(Database db, int version) async {
     await db.execute('''
     CREATE TABLE IF NOT EXISTS key_info (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, // معرف تلقائي
-      senderUUID TEXT NOT NULL, // UUID الخاص بالمرسل
-      senderNUM TEXT, // رقم هاتف المرسل
-      receiverUUID TEXT NOT NULL, // UUID الخاص بالمستقبل
-      receiverNUM TEXT, // رقم هاتف المستقبل
-      sharedSecret TEXT NOT NULL, // المفتاح المشترك
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, // تاريخ الإنشاء
-      UNIQUE(senderUUID, receiverUUID) // ضمان عدم تكرار نفس الزوج من المرسل والمستقبل
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      senderUUID TEXT NOT NULL,
+      senderNUM TEXT,
+      receiverUUID TEXT NOT NULL,
+      receiverNUM TEXT,
+      sharedSecret TEXT NOT NULL, 
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(senderUUID, receiverUUID)
     )
   ''');
-    print('✅ تم إنشاء جدول key_info محلياً'); // طباعة رسالة عند إنشاء الجدول
+    print('✅ تم إنشاء جدول key_info محلياً');
   }
-
-  // دالة لجلب UUID المستقبل باستخدام UUID المرسل ورقم المستقبل
-  Future<String?> queryreceiverUUID({
-    required String senderUUID, // UUID الخاص بالمرسل
-    required String receiverNUM, // رقم هاتف المستقبل
+  Future<String?>  queryreceiverUUID({
+    required String senderUUID,
+    required String receiverNUM,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     final List<Map<String, dynamic>> getkey = await db.query(
-      'key_info', // اسم الجدول
-      where: 'senderNUM = ? AND receiverNUM = ?', // شرط البحث
-      whereArgs: [senderUUID, receiverNUM], // قيم البحث
+      'key_info',
+      where: 'senderNUM = ? AND receiverNUM = ?',
+      whereArgs: [senderUUID, receiverNUM],
     );
 
     if (getkey.isEmpty) {
-      print('⚠️ No keys found for senderUUID: $senderUUID and receiverNUM: $receiverNUM'); // طباعة رسالة إذا لم تكن هناك نتائج
-      return null; // إرجاع null إذا لم تكن هناك نتائج
+      print('⚠️ No keys found for senderUUID: $senderUUID and receiverNUM: $receiverNUM');
+      return null;
     }
 
-    final receiverUUID = getkey[0]['receiverUUID'] as String?; // جلب UUID المستقبل
-    return receiverUUID; // إرجاع UUID المستقبل
-  }
+    final receiverUUID = getkey[0]['receiverUUID'] as String?;
 
-  // دالة لجلب UUID المستقبل باستخدام أرقام الهواتف
+
+    return receiverUUID;
+  }
   Future<String?> queryreceiverUUID_by_serderUUID({
-    required String senderNUM, // رقم هاتف المرسل
-    required String receiverNUM, // رقم هاتف المستقبل
+    required String senderNUM,
+    required String receiverNUM,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     final List<Map<String, dynamic>> results = await db.query(
-      'key_info', // اسم الجدول
-      where: 'senderNUM = ? AND receiverNUM = ?', // شرط البحث
-      whereArgs: [senderNUM, receiverNUM], // قيم البحث
-      limit: 1, // تحديد عدد النتائج
+      'key_info',
+      where: 'senderNUM = ? AND receiverNUM = ?',
+      whereArgs: [senderNUM, receiverNUM],
+      limit: 1,
     );
 
-    if (results.isEmpty) return null; // إرجاع null إذا لم تكن هناك نتائج
+    if (results.isEmpty) return null;
 
-    final receiverUUID = results[0]['receiverUUID']?.toString(); // جلب UUID المستقبل
-    return receiverUUID; // إرجاع UUID المستقبل
+    // تأكيد أن الحقل موجود وأنه من النوع الصحيح
+    final receiverUUID = results[0]['receiverUUID']?.toString();
+    return receiverUUID;
   }
-
-  // دالة لتخزين المفاتيح محليًا
-  Future<void> storeKeysLocally({
-    required String senderUUID, // UUID الخاص بالمرسل
-    required String senderNUM, // رقم هاتف المرسل
-    required String? receiverUUID, // UUID الخاص بالمستقبل
-    required String receiverNUM, // رقم هاتف المستقبل
-    required BigInt sharedSecret, // المفتاح المشترك
+  Future<String?> queryKeysLocally({
+    required String senderUUID,
+    required String receiverNUM,
   }) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
+    final List<Map<String, dynamic>> getkey = await db.query(
+      'key_info',
+      where: 'senderUUID = ? AND receiverNUM = ?',
+      whereArgs: [senderUUID, receiverNUM],
+    );
 
-    // بناء شرط البحث للتأكد من عدم وجود المفتاح مسبقًا
+    if (getkey.isEmpty) {
+      print('⚠️ No sharedSecret found for senderUUID: $senderUUID ');
+      return null;
+    }
+
+    final sharedSecret = getkey[0]['sharedSecret'] as String?;
+    print('🔑 SharedSecret key is: $sharedSecret');
+    return sharedSecret;
+  }
+  Future<String?> queryKeysLocally1({
+    required String senderNUM,
+    required String receiverNUM,
+  }) async {
+    final db = await database;
+    final List<Map<String, dynamic>> getkey = await db.query(
+      'key_info',
+      where: 'senderNUM = ? AND receiverNUM = ?',
+      whereArgs: [senderNUM, receiverNUM],
+    );
+
+    if (getkey.isEmpty) {
+      print('⚠️ No sharedSecret found for senderUUID: $senderNUM ');
+      return null;
+    }
+
+    final sharedSecret = getkey[0]['sharedSecret'] as String?;
+    print('🔑 SharedSecret key is: $sharedSecret');
+    return sharedSecret;
+  }
+  Future<void> storeKeysLocally({
+    required String senderUUID,
+    required String senderNUM,
+    required String? receiverUUID,
+    required String receiverNUM,
+    required BigInt sharedSecret,
+  }) async {
+    final db = await database;
+
+    // بناء الاستعلام بشكل ديناميكي للتعامل مع NULL
     String whereClause = 'senderUUID = ? AND receiverUUID ${receiverUUID == null ? 'IS' : '='} ?';
     List<dynamic> whereArgs = [senderUUID, receiverUUID];
 
     final List<Map<String, dynamic>> existing = await db.query(
-      'key_info', // اسم الجدول
-      where: whereClause, // شرط البحث
-      whereArgs: whereArgs, // قيم البحث
+      'key_info',
+      where: whereClause,
+      whereArgs: whereArgs,
     );
 
     if (existing.isEmpty) {
-      // إذا لم يكن المفتاح موجودًا، يتم إدخاله
       await db.insert(
         'key_info',
         {
@@ -168,21 +193,22 @@ class DatabaseHelper {
           'receiverNUM': receiverNUM,
           'sharedSecret': sharedSecret.toString(),
         },
-        conflictAlgorithm: ConflictAlgorithm.replace, // استبدال البيانات إذا كانت موجودة
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      print('$sharedSecret 🔑 تم حفظ المفاتيح محلياً'); // طباعة رسالة عند الحفظ
+      print('$sharedSecret 🔑 تم حفظ المفاتيح محلياً');
     } else {
-      print('المفاتيج موجودة مسبقاً'); // طباعة رسالة إذا كانت المفاتيح موجودة مسبقًا
+      print('المفاتيج موجودة مسبقاً');
     }
   }
 
+
   // دالة للتحقق من وجود الجدول
   Future<bool> tableExists(String tableName) async {
-    final db = await database; // الحصول على قاعدة البيانات
+    final db = await database;
     final result = await db.rawQuery(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name=?", // استعلام للتحقق من وجود الجدول
-      [tableName], // اسم الجدول
+      "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+      [tableName],
     );
-    return result.isNotEmpty; // إرجاع true إذا كان الجدول موجودًا
+    return result.isNotEmpty;
   }
 }
